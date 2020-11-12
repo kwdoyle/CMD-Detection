@@ -14,6 +14,10 @@ CLI = argparse.ArgumentParser()
 
 """Extract events for start/stop trying moving your R/L hand, save and raw.fif for experiment patient data"""
 
+# TODO make separate functions that 1) find the events 2) save the plot 3) save the fif file
+#  then can call the event creation and plotting functions from this in a new script that can be run
+#  just to check if a file was recorded properly
+
 
 def plot_trigs(x, y):
     plt.figure().suptitle(y)
