@@ -7,6 +7,8 @@ from glob import glob
 import argparse
 import matplotlib.pyplot as plt
 
+import legacy_functions as old
+
 
 plt.interactive(True)
 mne.utils.set_log_level('ERROR')
@@ -216,7 +218,15 @@ def main(wd, args):
         # plot_trigs(chan[2, :], y='DC7')
         # plot_trigs(chan[3, :], y='DC8')
 
+        # run process_triggers and then find_events and, if there's no events,
+        # try the old method?
+        # It might be ok if then the old method doesn't work (ie, doesn't have a text file)
+        # and returns None.
         events = mne.find_events(raw, consecutive=True)
+
+        if not events.size > 0:
+            raw = old.process_older_recs(raw, fl=fl, wd=wd)
+            events = mne.find_events(raw, consecutive=True)
 
         plt_name = os.path.basename(fl).split('/')[len(os.path.basename(fl).split('/')) - 1]
         # make blank plot if file has no events
