@@ -4,9 +4,11 @@ import os
 import mne
 import numpy as np
 from glob import glob
+from collections import Counter
 import argparse
 import matplotlib.pyplot as plt
 
+import eeg_functions as eeg
 import legacy_functions as old
 
 
@@ -171,6 +173,43 @@ def process_triggers(raw, trig_chans=None):
     return raw
 
 
+# Turn the fix_dc7 component from "test_files.py" into its own function to use after ensuring an
+# equal number of events between all event ids.
+def fix_dc7(events):
+    to_check = [(0, events[-1, 0] + 1)]
+    for i_block, (block_start, block_end) in enumerate(to_check):
+        print('============FIX DC7===============')
+        print(f'Fixing DC7 in block {i_block} in range '
+              f'[{block_start}, {block_end}]')
+        is_start = True
+        is_inst = True
+        for i_event, t_event in enumerate(events):
+            if block_end > t_event[0] > block_start:
+                if is_start is True:  # This should be a start
+                    if t_event[2] not in [10, 20, 50, 60]:
+                        events[i_event, 2] -= 20
+
+                # Now check the rest
+                if is_inst is True and is_start is True:
+                    # Start of instruction to start
+                    is_inst = False  # Next one is not instruction
+                    is_start = True  # Next one is a start
+                elif is_inst is False and is_start is True:
+                    # Start of block, next one is a stop instruction
+                    is_inst = True
+                    is_start = False
+                elif is_inst is True and is_start is False:
+                    # Start of instruction to stop, next one is stop
+                    is_inst = False
+                    is_start = False
+                elif is_inst is False and is_start is False:
+                    # Start of stop block, next one is a start instruction
+                    is_inst = True
+                    is_start = True
+
+    return events
+
+
 def main(wd, args):
     filetype = args.filetype
     if filetype == 'edf':
@@ -223,6 +262,16 @@ def main(wd, args):
         # It might be ok if then the old method doesn't work (ie, doesn't have a text file)
         # and returns None.
         events = mne.find_events(raw, consecutive=True)
+        # now clean them
+        # TODO need to determine which events to take if a block is too long but otherwise setup correctly
+        events = eeg.clean_events(events)
+        events = eeg.clean_trigger_blocks2(events)
+
+        count = Counter(events[:, 2])
+        # TODO need to also do something if the above cleaning methods didn't work.
+        #  i.e., do not have an equal number of events
+        if np.all(list(count.values())):
+            events = fix_dc7(events)
 
         if not events.size > 0:
             raw = old.process_older_recs(raw, fl=fl, wd=wd)

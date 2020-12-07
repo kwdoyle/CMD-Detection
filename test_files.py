@@ -6,7 +6,9 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 
-fname = 'recording6-raw.fif' #'recording7-raw.fif'
+# import eeg_functions as eeg
+
+fname = 'recording3-raw.fif'  # 'recording7-raw.fif'
 
 # db_path = Path('/Users/fraimondo/ownCloud/ICM/data/columbia/'
 #                'deidentified fifs 1')
@@ -46,15 +48,15 @@ params_dict = {
         'auto_check_block': True
     },
     'recording3-raw.fif': {
-        # 'blocks_to_check': [
-        #     (6500, 64000),
-        #     (64000, 126000),
-        #     (126000, 190000),
-        #     (190000, 249000),
-        #     (250000, 307000),
-        #     (648000, 706107)],
+        'blocks_to_check': [
+            (6500, 64000),
+            (64000, 126000),
+            (126000, 190000),
+            (190000, 249000),
+            (250000, 307000),
+            (648000, 706107)],
         'auto_check_block': True,
-        #'keep_only_blocks': True,
+        'keep_only_blocks': True,
         'fix_dc7': True
     },
     'recording4-raw.fif': {
@@ -409,7 +411,32 @@ if fix_dc7:
     fig.suptitle('Fixed DC7')
 
 
-# TODO maybe there's a better way to define the blocks for auto-checking?
+# # TODO maybe there's a better way to define the blocks for auto-checking?
+# #  For recording6 at least, clean_events | clean_trigger_blocks2 seems to correctly clean them.
+# import mne.viz as pe
+# # For recording6, this works to remove the small not-full-block-size number of events
+# # in the start of the file
+# # events2 = eeg.clean_trigger_blocks2(events)
+# #
+# # events3 = eeg.clean_events(events2)
+#
+# # what happens if I just use clean_events?
+# # this doesn't remove the small "blocks" in the beginning..
+# # !.... BUT it DOES correctly assign that last block--
+# # no more gap w/ 1 extra trigger for events 30 and 40
+# events = eeg.clean_events(events)
+# # TODO what if I run clean_trigger_blocks2 after clean_events?
+# #  this seems to work--at least for the few files tested so far with
+# #  relatively the same issues.
+# #  This was now put into preproc.py.
+# events = eeg.clean_trigger_blocks2(events)
+# # see if fix_dc7 works after this.
+# count = Counter(events[:, 2])
+# if np.all(list(count.values())):
+#     pass
+#
+#
+
 auto_check_block = subject_dict.get('auto_check_block', False)
 if auto_check_block:
     n_events = events.shape[0]
@@ -417,6 +444,9 @@ if auto_check_block:
     block_ends = events[slice(31, n_events + 1, 32)][:, 0] + 1
     rm_events, add_events = _check_events(events, zip(block_starts, block_ends))
 
+# see if the above works after cleaning it first with clean_trigger_blocks2
+# nope. it does not. need to use "clean_events" and then "clean_trigger_blocks2" instead.
+# events2 = np.delete(events, rm_events, axis=0)
 
 out_fname = db_path / fname.replace('.fif', '-eve.fif')
 print(f'Saving events to {out_fname}')
