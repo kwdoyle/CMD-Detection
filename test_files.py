@@ -6,10 +6,17 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 
-fname = 'recording1-raw.fif'
+fname = 'recording6-raw.fif' #'recording7-raw.fif'
 
-db_path = Path('/Users/fraimondo/ownCloud/ICM/data/columbia/'
-               'deidentified fifs 1')
+# db_path = Path('/Users/fraimondo/ownCloud/ICM/data/columbia/'
+#                'deidentified fifs 1')
+
+db_path = Path('/Volumes/kd2630/EDFs to deidentify for fede 11-13-2020/'
+               'deidentified/deidentified fifs 1')
+
+# NOTE!! keep_only_blocks can NOT be True if blocks to check is empty!!
+# see if auto_check_block being true without blocks_to_check and keep_only_blocks = False
+# works.
 
 """
 Elements for each subject's dict:
@@ -39,18 +46,22 @@ params_dict = {
         'auto_check_block': True
     },
     'recording3-raw.fif': {
-        'blocks_to_check': [
-            (6500, 64000),
-            (64000, 126000),
-            (126000, 190000),
-            (190000, 249000),
-            (250000, 307000),
-            (648000, 706107)],
-        'keep_only_blocks': True,
+        # 'blocks_to_check': [
+        #     (6500, 64000),
+        #     (64000, 126000),
+        #     (126000, 190000),
+        #     (190000, 249000),
+        #     (250000, 307000),
+        #     (648000, 706107)],
+        'auto_check_block': True,
+        #'keep_only_blocks': True,
         'fix_dc7': True
     },
     'recording4-raw.fif': {
-        'crop_events': (4000, 374000),
+        'blocks_to_check': [
+            (4000, 374000),
+            (322646, 394133)
+        ],
         'fix_dc7': True,
         'auto_check_block': True
     },
@@ -66,6 +77,11 @@ params_dict = {
     },
     'recording6-raw.fif': {
         'crop_events': (84450, 484000),
+        'fix_dc7': True,
+        'auto_check_block': True
+    },
+    'recording7-raw.fif': {
+        'crop_events': (1892, 57380),
         'fix_dc7': True,
         'auto_check_block': True
     },
@@ -290,6 +306,8 @@ fig.suptitle('Before fixes')
 
 
 def _check_events(events, to_check):
+    events_to_rm = []
+    events_to_add = []
     for i_block, (block_start, block_end) in enumerate(to_check):
         print('===========BLOCK CHECK==============')
         print(f'Checking block {i_block} in range '
@@ -314,6 +332,8 @@ def _check_events(events, to_check):
                     if should_remove:
                         print(
                             f'\tShould remove {t_idx} @ {t_events[t_idx][0]}')
+                        # events_to_rm.append(t_events[t_idx][0])
+                        events_to_rm.append(t_idx)
         # Check that between the instruction trigger and the next we have 2.7s
 
         t_start = 0
@@ -331,6 +351,7 @@ def _check_events(events, to_check):
                     prev_start = event[0] - round(2.71875 * raw.info['sfreq'])
                     prev_code = event[2] - 10
                     print(f'\t Should inject [{prev_start}, 0, {prev_code}]')
+                    events_to_add.append([prev_start, 0, prev_code])
                 prev_inst = False
 
         event_counts = Counter(block_events[:, 2])
@@ -343,9 +364,11 @@ def _check_events(events, to_check):
     for t_name, t_id in _mcp_event_id.items():
         print(f'\t{t_name} => {event_counts[t_id]}')
 
+    return events_to_rm, events_to_add
+
 
 to_check = subject_dict.get('blocks_to_check', [])
-_check_events(events, to_check)
+rm_events, add_events = _check_events(events, to_check)
 
 fix_dc7 = subject_dict.get('fix_dc7', False)
 if fix_dc7:
@@ -386,12 +409,13 @@ if fix_dc7:
     fig.suptitle('Fixed DC7')
 
 
+# TODO maybe there's a better way to define the blocks for auto-checking?
 auto_check_block = subject_dict.get('auto_check_block', False)
 if auto_check_block:
     n_events = events.shape[0]
     block_starts = events[slice(0, n_events, 32)][:, 0] - 1
     block_ends = events[slice(31, n_events + 1, 32)][:, 0] + 1
-    _check_events(events, zip(block_starts, block_ends))
+    rm_events, add_events = _check_events(events, zip(block_starts, block_ends))
 
 
 out_fname = db_path / fname.replace('.fif', '-eve.fif')
