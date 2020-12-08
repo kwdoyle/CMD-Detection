@@ -29,7 +29,7 @@ def plot_trigs(x, y):
     plt.show()
 
 
-def process_triggers(raw, trig_chans=None):
+def process_triggers(raw, trig_thresh=2, trig_chans=None):
     _mcp_trig_map = {
         0xD8: 'inst_start/left',  # 216
         0xD0: 'start/left',  # 208
@@ -57,7 +57,7 @@ def process_triggers(raw, trig_chans=None):
         trig_chans = ['DC5', 'DC6', 'DC7', 'DC8']
 
     trig_mult = np.array([0x8, 0x10, 0x40, 0x80])
-    trig_thresh = 2  # 2 Volts trigger
+    # trig_thresh = 2  # 2 Volts trigger
 
     trig_idx = mne.pick_channels(raw.ch_names, trig_chans)
 
@@ -244,7 +244,11 @@ def main(wd, args):
         sfreq = raw.info['sfreq']
 
         # new trigger processing function
-        raw = process_triggers(raw=raw)
+        # TODO so modifying the trig thresh also helps
+        #  eg, in recording5 where one block didn't parse out correctly for the 4 different events.
+        #  Be careful though, because I think changing this could also mess things up for other
+        #  files
+        raw = process_triggers(raw=raw, trig_thresh=1)
 
         trig_chan = mne.pick_channels(raw.info['ch_names'],
                                       include=['DC5', 'DC6', 'DC7', 'DC8'])
@@ -307,6 +311,8 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-    wd = os.getcwd()
-    args = CLI.parse_args()
+    # wd = os.getcwd()
+    # args = CLI.parse_args()
+    args = argparse.Namespace(filetype='fif')
+    wd = '/Volumes/kd2630/EDFs to deidentify for fede 11-13-2020/deidentified/deidentified fifs 1'
     main(wd=wd, args=args)

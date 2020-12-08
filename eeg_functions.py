@@ -1851,6 +1851,39 @@ def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
 # Will remove extraneous triggers from all the events
 # i.e., remove instruction from an incomplete trial
 # e.g., a 'keep moving' without the following 'stop moving'
+# TODO omg... this should idealy use some internal function that does whatever this function does
+#  but for a given event id instead of trying to do it for L/R start/stop at once
+#  e.g., this works when the BROKEN events are passed to it because there's only 4 unique IDs
+#  but when the DC7 channel works and the events are correctly-parsed, this fails because there's
+#  more than 4 unique IDs.
+
+# TODO test doing the above on recording6 I guess to ensure it works on a file I already know it worked for before
+#  and then try on recording5 again.
+
+# TODO or... not?
+#  actually, this could work if it just did it on "pairs"
+#  in the case w/ 4 unique IDs, there's 2 pairs. L start/stop and R start/stop.
+#  in the case w/ 8 unique IDs, there should be 4 pairs. L start/stop, R start/stop, L instr start/stop, R instr start/stop.
+def clean_event_id_pair(events, id_pair):
+    id1, id2 = id_pair
+    all_1 = np.where(events[:, 2] == id1)[0]
+    all_2 = np.where(events[:, 2] == id2)[0]
+
+    rm_ix = []
+
+    if all_1[len(all_1)-1] == len(events)-1:
+        # don't outright delete within this function; just return list of all indices to delete
+        # events = np.delete(events, all_1[len(all_1)-1], axis=0)
+        rm_ix.append(all_1[len(all_1)-1])
+        all_1 = all_1[:-1]
+
+    check_1 = [events[[all_1 + 1], 2] != id2][0][0]
+    rm_1 = list(all_1[check_1])
+    rm_ix.extend(rm_1)
+
+
+
+
 def clean_events(events):
     # updated to extract event ids by itself
     event_counts = Counter(events[:, 2])
@@ -1901,6 +1934,8 @@ def clean_events(events):
     # use the Trues in the above to get the indices from all_X
     # to know which triggers to remove
 
+    # these are just used to determine which variables to concatenate together...
+    # shouldn't affect the function itself.
     if ((len(all_2) != 0) & (len(all_1) != 0)) & ((len(all_3) == 0) & (len(all_4) == 0)):
         rm_all = np.concatenate((rm_1, rm_2), axis=None)
         
