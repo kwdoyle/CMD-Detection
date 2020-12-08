@@ -1795,6 +1795,23 @@ def assign_stop_mod_for_baseln(trigs, chan, sfreq, t_range, start_right=3, start
     return chan
 
 
+# TODO this one's going to be a bit different. "All" this does is check when the block changes
+#  based on 1) the distance between events and 2) when the ID changes.
+#  Right now it checks if the block goes from left to right based on a single l start/stop compared with
+#  r start/stop.
+#  I need to make it realize that the l commands can be more than a single start/stop.
+#  (ie start/stop & instr start/stop).
+
+# TODO have: (l_start, l_stop) vs (r_start, r_stop)
+#  but need: (l_start, l_stop), (l_instr_start, l_instr_stop) vs (r_start, r_stop), (r_instr_start, r_instr_stop)
+
+# TODO maybe get pairs like in clean_event_ids and then make two disting r and l groups
+#  which can either have (x_start, x_stop) or (x_start, x_stop, x_instr_start, x_instr_stop)
+#  and then compare the two groups instead of comparing x_start, x_stop with not x_start, x_stop
+def clean_trigger_block_id_pair(id_pair):
+    id1, id2 = id_pair
+
+
 def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
     event_counts = Counter(events[:, 2])
     event_ids = list(event_counts.keys())
@@ -1881,7 +1898,38 @@ def clean_event_id_pair(events, id_pair):
     rm_1 = list(all_1[check_1])
     rm_ix.extend(rm_1)
 
+    if len(all_2) != 0:
+        check_2 = [events[[all_2-1],2] != id1][0][0]
+        rm_2 = list(all_2[check_2])
+        rm_ix.extend(rm_2)
 
+    rm_unique = np.unique(rm_ix)
+
+    return rm_unique
+
+
+# same as below, but now use sub function on id pairs to find events to remove
+def clean_events_new(events):
+    event_counts = Counter(events[:, 2])
+    event_ids = list(event_counts.keys())
+    event_ids.sort()
+
+    if len(event_ids) % 2 == 0:
+        id_pairs = [(event_ids[i], event_ids[i+1]) for i in range(0, len(event_ids), 2)]
+    else:
+        raise ValueError('Uneven amount of event IDs found!')
+
+    out = []
+    for pair in id_pairs:
+        rm_ixs = clean_event_id_pair(events, id_pair=pair)
+        out.append(rm_ixs)
+
+    # concatenate all arrays together
+    rm_ix_all = np.concatenate(out, axis=0)
+    # and remove
+    events = np.delete(events, rm_ix_all, axis=0)
+
+    return events
 
 
 def clean_events(events):

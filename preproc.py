@@ -268,7 +268,8 @@ def main(wd, args):
         events = mne.find_events(raw, consecutive=True)
         # now clean them
         # TODO need to determine which events to take if a block is too long but otherwise setup correctly
-        events = eeg.clean_events(events)
+        # events = eeg.clean_events(events)
+        events = eeg.clean_events_new(events)
         events = eeg.clean_trigger_blocks2(events)
 
         count = Counter(events[:, 2])
