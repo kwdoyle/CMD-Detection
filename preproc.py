@@ -22,6 +22,9 @@ CLI = argparse.ArgumentParser()
 #  then can call the event creation and plotting functions from this in a new script that can be run
 #  just to check if a file was recorded properly
 
+# TODO wrap the entire event-finding code in some new function and see if iterating using different trig thresholds
+#  until the events are found/cleaned correctly works
+
 
 def plot_trigs(x, y):
     plt.figure().suptitle(y)
@@ -244,11 +247,12 @@ def main(wd, args):
         sfreq = raw.info['sfreq']
 
         # new trigger processing function
-        # TODO so modifying the trig thresh also helps
+        # so modifying the trig thresh also helps
         #  eg, in recording5 where one block didn't parse out correctly for the 4 different events.
         #  Be careful though, because I think changing this could also mess things up for other
         #  files
-        raw = process_triggers(raw=raw, trig_thresh=1)
+        #  Huh.. recording6 came out fine even with the lower threshold.. I guess that's good
+        raw = process_triggers(raw=raw, trig_thresh=0.5)
 
         trig_chan = mne.pick_channels(raw.info['ch_names'],
                                       include=['DC5', 'DC6', 'DC7', 'DC8'])
@@ -268,14 +272,25 @@ def main(wd, args):
         events = mne.find_events(raw, consecutive=True)
         # now clean them
         # TODO need to determine which events to take if a block is too long but otherwise setup correctly
-        # events = eeg.clean_events(events)
-        events = eeg.clean_events_new(events)
+
+        #  I think I need yet ANOTHER function that, if there's more than 4 event ids,
+        #  to check if the distance between each event in an id is a set distance.
+        #  For every other event in a given id, if the distance is too short to the next event, remove that next event.
+        events = eeg.clean_events(events)
         events = eeg.clean_trigger_blocks2(events)
+
+        #  For recording5, setting the trig threshold even lower to 0.5 fixes the issue
+        #  of events in 80/70 that should be in 60/50.
+        #  So all the crazy extra cleaning I tried to setup with _clean_events is unnecessary
+        #  (which is good, because this still didn't work)
+        # rm_idx, inject_events = eeg._check_events(events=events, sfreq=raw.info['sfreq'], dist_thresh=10000)
 
         count = Counter(events[:, 2])
         # TODO need to also do something if the above cleaning methods didn't work.
         #  i.e., do not have an equal number of events
-        if np.all(list(count.values())):
+        chk_arr = np.array(list(count.values()))
+        # if np.all(list(count.values())):
+        if np.all(chk_arr == chk_arr[0]):
             events = fix_dc7(events)
 
         if not events.size > 0:

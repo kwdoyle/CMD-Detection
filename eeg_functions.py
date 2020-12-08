@@ -1795,29 +1795,37 @@ def assign_stop_mod_for_baseln(trigs, chan, sfreq, t_range, start_right=3, start
     return chan
 
 
-# TODO this one's going to be a bit different. "All" this does is check when the block changes
+#  this one's going to be a bit different. "All" this does is check when the block changes
 #  based on 1) the distance between events and 2) when the ID changes.
 #  Right now it checks if the block goes from left to right based on a single l start/stop compared with
 #  r start/stop.
 #  I need to make it realize that the l commands can be more than a single start/stop.
 #  (ie start/stop & instr start/stop).
 
-# TODO have: (l_start, l_stop) vs (r_start, r_stop)
+# have: (l_start, l_stop) vs (r_start, r_stop)
 #  but need: (l_start, l_stop), (l_instr_start, l_instr_stop) vs (r_start, r_stop), (r_instr_start, r_instr_stop)
 
-# TODO maybe get pairs like in clean_event_ids and then make two disting r and l groups
+# maybe get pairs like in clean_event_ids and then make two disting r and l groups
 #  which can either have (x_start, x_stop) or (x_start, x_stop, x_instr_start, x_instr_stop)
 #  and then compare the two groups instead of comparing x_start, x_stop with not x_start, x_stop
-def clean_trigger_block_id_pair(id_pair):
-    id1, id2 = id_pair
+
+# ..do I not even need to auto-find the ids? I can just specify a list of values to look through.
+def clean_trigger_block_id_pair(labs, l_ids=[10,20,30,40], r_ids=[50,60,70,80]):
+    l_change = []
+    r_change = []
+    for i in range(1, len(labs)):
+        if (labs[i - 1] not in l_ids) and (labs[i] in l_ids):
+            l_change.append(i)
+        if (labs[i - 1] not in r_ids) and (labs[i] in r_ids):
+            r_change.append(i)
+
+    new_block_id = np.array(l_change + r_change)
+    new_block_id.sort()
+
+    return new_block_id
 
 
-def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
-    event_counts = Counter(events[:, 2])
-    event_ids = list(event_counts.keys())
-    event_ids.sort()
-    l_start, l_stop, r_start, r_stop = event_ids
-
+def find_event_block_boundaries(events, dist_thresh):
     labs = events[:, 2]
     # index differences
     diffs = np.diff(events[:, 0])
@@ -1825,25 +1833,62 @@ def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
     # add 1 to the indices to get the start of the next block and not the end of the previous one
     new_block_dist = np.where(diffs > dist_thresh)[0] + 1
 
-    # gaps where block changes based on id
-    l_change = []
-    r_change = []
-    for i in range(1, len(labs)):
-        if (labs[i - 1] not in (l_start, l_stop)) and (labs[i] in (l_start, l_stop)):
-            l_change.append(i)
-        if (labs[i - 1] not in (r_start, r_stop)) and (labs[i] in (r_start, r_stop)):
-            r_change.append(i)
-
-    new_block_id = np.array(l_change + r_change)
-    new_block_id.sort()
+    new_block_id = clean_trigger_block_id_pair(labs=labs, l_ids=[10, 20, 30, 40], r_ids=[50, 60, 70, 80])
 
     new_block_idxs = np.unique(np.concatenate((new_block_dist, new_block_id), axis=None))
     # add in the start and end!!!!!!!
     new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs) - 1)))
     new_block_idxs2.sort()
 
+    return new_block_idxs2
+
+
+def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
+    # event_counts = Counter(events[:, 2])
+    # event_ids = list(event_counts.keys())
+    # event_ids.sort()
+    # l_start, l_stop, r_start, r_stop = event_ids
+
+    # labs = events[:, 2]
+    # # index differences
+    # diffs = np.diff(events[:, 0])
+    # # gaps where block changes based on distance
+    # # add 1 to the indices to get the start of the next block and not the end of the previous one
+    # new_block_dist = np.where(diffs > dist_thresh)[0] + 1
+    #
+    # # gaps where block changes based on id
+    # # this is its own function now
+    # # l_change = []
+    # # r_change = []
+    # # for i in range(1, len(labs)):
+    # #     if (labs[i - 1] not in (l_start, l_stop)) and (labs[i] in (l_start, l_stop)):
+    # #         l_change.append(i)
+    # #     if (labs[i - 1] not in (r_start, r_stop)) and (labs[i] in (r_start, r_stop)):
+    # #         r_change.append(i)
+    # #
+    # # new_block_id = np.array(l_change + r_change)
+    # # new_block_id.sort()
+    #
+    # new_block_id = clean_trigger_block_id_pair(labs=labs, l_ids=[10,20,30,40], r_ids=[50,60,70,80])
+    #
+    # new_block_idxs = np.unique(np.concatenate((new_block_dist, new_block_id), axis=None))
+    # # add in the start and end!!!!!!!
+    # new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs) - 1)))
+    # new_block_idxs2.sort()
+
+    new_block_idxs2 = find_event_block_boundaries(events, dist_thresh=dist_thresh)
+
     # count number of event ids between the new block idx
     # and pick out blocks that are too small and should be removed
+    # it might not be necessary, but as of now this part won't work when events are already
+    #  in 4 different IDs per block.
+    #  It checks the length of the block by looking at all IDs in it--but wait
+    #  that's exactly the same as doing it on the non-dc7'd blocks so I guess it's fine after all
+    #  so replace _check_events's block definition with this and then see how it works
+    #  to insert/remove events after having run clean_events and clean_trigger_blocks2
+    #  maybe make the above code to define new_block_idxs2 into its own function as well
+    #  that way I can use that in _check_events and then just copy the first for loop below
+    #  into _check_events to subset the actual blocks.
     rm_idxs = []
     block_sizes = []
     for i in range(1, len(new_block_idxs2)):
@@ -1865,19 +1910,128 @@ def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
     return events_clean
 
 
+# code fede wrote to find events to delete/inject within a block
+# I guess the injection parts needs to be able to see if a chunk of events
+#  are missing from, e.g., the "start/stop" IDs that have events at the same time for the
+#  matching "start instr/stop instr" events....
+# But it might not be necessary after all, since altering the trig thresh
+# cleaned the events in the first place.
+# This was the case only with one file though..
+def _check_events(events, sfreq, dist_thresh=10000):
+    _mcp_event_id = {
+        'inst_start/left': 10,  # 216 = 1101 1000b
+        'start/left': 20,  # 208 = 1101 0000b
+        'inst_stop/left': 30,  # 152 = 1001 1000b
+        'stop/left': 40,  # 144 = 1001 0000b
+
+        'inst_start/right': 50,  # 200 = 1100 1000b
+        'start/right': 60,  # 192 = 1100 0000b
+        'inst_stop/right': 70,  # 136 = 1000 1000b
+        'stop/right': 80  # 128 = 1000 0000b
+    }
+
+    events_to_rm = []
+    events_to_add = []
+    # Need to use the sample numbers from the first "column" in the events array
+    #  to find the indices to remove and then return that instead
+    event_sample_nums_to_rm = []
+
+    to_check = find_event_block_boundaries(events, dist_thresh=dist_thresh)
+
+    for i in range(1, len(to_check)):
+        start = to_check[i - 1]
+        end = to_check[i]
+
+        print(f'Checking block {i} in range '
+              f'[{start}, {end}]')
+
+        block_events = events[start:end, :]
+
+        #  implement this into a new function to remove any extra events that are too close
+        #  to the previous event.
+        #  need to augment the finding of blocks by using the distance again I guess
+        #  What I did in one of the cleaning functions should work.
+        #  Then pass those event blocks to the below code
+
+        # Events of same kind must be between 27.4 and 29.4 seconds appart
+
+        #  I need to find a way for this to give me the indices from the whole
+        #  event array instead of each event id subset.
+        #  because right now it'll check id 80, find that "event number 2" should be removed,
+        #  then check id 70 and ALSO find "event number 2" should be removed
+        #  but "event number 2" for each of these has its own separate index in the whole array.
+        #  I think I can just save the sample number in that first "column" in the event array
+        #  and then, afterwards, find which indices of the event array have those numbers.
+        for event_to_fix, event_id in _mcp_event_id.items():
+            print(event_to_fix)
+            id_mask = block_events[:, 2] == event_id
+            t_events = block_events[id_mask]
+            diffs = np.diff(t_events[:, 0]) / sfreq
+            bad_idx = np.where(np.logical_or(diffs < 27, diffs > 30))[0]
+            if len(bad_idx):
+                print(f'Found bad {event_to_fix} events diff: ')
+                for t_idx in bad_idx:
+                    print(f'\tEvent {t_idx + 1} @ {t_events[t_idx][0]} => '
+                          f'diff is {diffs[t_idx]}')
+                    should_remove = t_idx + 1 not in bad_idx
+                    if should_remove:
+                        print(
+                            f'\tShould remove {t_idx} @ {t_events[t_idx][0]}')
+                        # events_to_rm.append(t_events[t_idx][0])
+                        # events_to_rm.append(t_idx)
+                        event_sample_nums_to_rm.append(t_events[t_idx][0])
+        # Check that between the instruction trigger and the next we have 2.7s
+
+        # NOTE: this might not be necessary after all
+        #  this needs to see if events are missing from the start of the block.
+        #  Right now I think it only looks at gaps in an otherwise complete block...
+        #  Somehow, the other event IDs from the current block need to be considered to.
+        #  e.g., if, at the current sample number, there's an ID for 70 and 80 but not 50 or 60,
+        #  the 50 or 60 event(s) have to be added.
+        t_start = 0
+        prev_inst = False
+        for i_event, event in enumerate(events):
+            if event[2] in [10, 30, 50, 70]:  # Inst, we count from here
+                t_start = event[0]
+                prev_inst = True
+            else:
+                diff = (event[0] - t_start) / sfreq
+                if 2.6 > diff or diff > 2.8:
+                    print(f'Event {i_event} @ {event[0]} does not have the '
+                          f'preceding instruction in range (diff = {diff})')
+                if prev_inst is False:
+                    prev_start = event[0] - round(2.71875 * sfreq)
+                    prev_code = event[2] - 10
+                    print(f'\t Should inject [{prev_start}, 0, {prev_code}]')
+                    events_to_add.append([prev_start, 0, prev_code])
+                prev_inst = False
+
+        event_counts = Counter(block_events[:, 2])
+        print('This block event counts:')
+        for t_name, t_id in _mcp_event_id.items():
+            print(f'\t{t_name} => {event_counts[t_id]}')
+        print('=====================================\n')
+    event_counts = Counter(events[:, 2])
+    print('Overall Event counts:')
+    for t_name, t_id in _mcp_event_id.items():
+        print(f'\t{t_name} => {event_counts[t_id]}')
+
+    return events_to_rm, events_to_add
+
+
 # Will remove extraneous triggers from all the events
 # i.e., remove instruction from an incomplete trial
 # e.g., a 'keep moving' without the following 'stop moving'
-# TODO omg... this should idealy use some internal function that does whatever this function does
+#  this should idealy use some internal function that does whatever this function does
 #  but for a given event id instead of trying to do it for L/R start/stop at once
 #  e.g., this works when the BROKEN events are passed to it because there's only 4 unique IDs
 #  but when the DC7 channel works and the events are correctly-parsed, this fails because there's
 #  more than 4 unique IDs.
 
-# TODO test doing the above on recording6 I guess to ensure it works on a file I already know it worked for before
+#  test doing the above on recording6 I guess to ensure it works on a file I already know it worked for before
 #  and then try on recording5 again.
 
-# TODO or... not?
+#  or... not?
 #  actually, this could work if it just did it on "pairs"
 #  in the case w/ 4 unique IDs, there's 2 pairs. L start/stop and R start/stop.
 #  in the case w/ 8 unique IDs, there should be 4 pairs. L start/stop, R start/stop, L instr start/stop, R instr start/stop.
@@ -1909,7 +2063,7 @@ def clean_event_id_pair(events, id_pair):
 
 
 # same as below, but now use sub function on id pairs to find events to remove
-def clean_events_new(events):
+def clean_events(events):
     event_counts = Counter(events[:, 2])
     event_ids = list(event_counts.keys())
     event_ids.sort()
@@ -1925,14 +2079,14 @@ def clean_events_new(events):
         out.append(rm_ixs)
 
     # concatenate all arrays together
-    rm_ix_all = np.concatenate(out, axis=0)
+    rm_ix_all = np.concatenate(out, axis=0).astype(int)
     # and remove
     events = np.delete(events, rm_ix_all, axis=0)
 
     return events
 
 
-def clean_events(events):
+def clean_events_old_dont_use(events):
     # updated to extract event ids by itself
     event_counts = Counter(events[:, 2])
     event_ids = list(event_counts.keys())
