@@ -22,9 +22,6 @@ CLI = argparse.ArgumentParser()
 #  then can call the event creation and plotting functions from this in a new script that can be run
 #  just to check if a file was recorded properly
 
-# TODO wrap the entire event-finding code in some new function and see if iterating using different trig thresholds
-#  until the events are found/cleaned correctly works
-
 
 def plot_trigs(x, y):
     plt.figure().suptitle(y)
@@ -56,11 +53,18 @@ def process_triggers(raw, trig_thresh=2, trig_chans=None):
         'stop/right': 80
     }
 
+    # use this instead of setting outright to choose specific channels. (i.e., exclude DC7)
+    _trig_hex = {
+        'DC5': 0x8,
+        'DC6': 0x10,
+        'DC7': 0x40,
+        'DC8': 0x80
+    }
+
     if trig_chans is None:
         trig_chans = ['DC5', 'DC6', 'DC7', 'DC8']
 
-    trig_mult = np.array([0x8, 0x10, 0x40, 0x80])
-    # trig_thresh = 2  # 2 Volts trigger
+    trig_mult = np.array([_trig_hex[chan] for chan in trig_chans])
 
     trig_idx = mne.pick_channels(raw.ch_names, trig_chans)
 
@@ -213,6 +217,45 @@ def fix_dc7(events):
     return events
 
 
+def clean_it(events):
+    events = eeg.clean_events(events)
+    events = eeg.clean_trigger_blocks2(events)
+
+    count = Counter(events[:, 2])
+    # TODO need to also do something if the above cleaning methods didn't work.
+    #  i.e., do not have an equal number of events
+    chk_arr = np.array(list(count.values()))
+
+    # also need to check if events have all the IDs before fixing dc7
+    ids_ideal = [10, 20, 30, 40, 50, 60, 70, 80]
+    ids_have = list(count.keys())
+    ids_check = all(eid in ids_have for eid in ids_ideal)
+
+    # manually set start/stop if all IDs have same number of events
+    # and do NOT have all 8 IDs
+    if np.all(chk_arr == chk_arr[0]) and not ids_check:
+        print('DC7 failure--start/stop not defined. Manually setting instead')
+        events = fix_dc7(events)
+
+    return events
+
+
+def process_file(raw, trig_thresh, trig_chans):
+    raw = process_triggers(raw=raw, trig_thresh=trig_thresh, trig_chans=trig_chans)
+    events = mne.find_events(raw, consecutive=True)
+    # now clean them
+    # TODO need to determine which events to take if a block is too long but otherwise setup correctly
+    #  e.g., the case for recording3
+    # do cleaning in single function
+    # return an empty array if file has no triggers
+    if events.size > 0:
+        events = clean_it(events)
+    else:
+        return np.array([])
+
+    return events
+
+
 def main(wd, args):
     filetype = args.filetype
     if filetype == 'edf':
@@ -244,56 +287,55 @@ def main(wd, args):
         # montage = mne.channels.read_montage('standard_1020')
         montage = mne.channels.make_standard_montage('standard_1020')
         raw.set_montage(montage, on_missing='ignore')
-        sfreq = raw.info['sfreq']
 
         # new trigger processing function
         # so modifying the trig thresh also helps
         #  eg, in recording5 where one block didn't parse out correctly for the 4 different events.
         #  Be careful though, because I think changing this could also mess things up for other
         #  files
-        #  Huh.. recording6 came out fine even with the lower threshold.. I guess that's good
-        raw = process_triggers(raw=raw, trig_thresh=0.5)
 
-        trig_chan = mne.pick_channels(raw.info['ch_names'],
-                                      include=['DC5', 'DC6', 'DC7', 'DC8'])
+        #  changing the trig threshold applies to all DC channels I guess.
+        #  I want a separate threshold just for DC7, so that way I can just ignore it if it's
+        #  completely unusable (eg, some blocks get split correctly but others don't no matter what thresh is used)
+        #  tl;dr: need a way to just ignore DC7 when processing the triggers.
+        #  TODO might also need to change the trig_thresh. Not sure if 0.5 will always be ok, but it seems to be so far.
+        events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC7', 'DC8'])
 
+        if events.size > 0:
+            # check event counts to determine if need to re-run without DC7
+            count = Counter(events[:, 2])
+            id_check = any(eid in list(count.keys()) for eid in [10,20,50,60])
+            chk_arr = np.array(list(count.values()))
+            num_chk = np.all(chk_arr == chk_arr[0])
+
+            # essentially the opposite of the check that determines if fix_dc7 should be used
+            if id_check and not num_chk:
+                print('DC7 is unusable--re-running without it.')
+                events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC8'])
+
+            # ensure all event IDs are present with equal number of events
+            count = Counter(events[:, 2])
+            chk_arr = np.array(list(count.values()))
+            num_chk = np.all(chk_arr == chk_arr[0])
+            id_check = any(eid in list(count.keys()) for eid in [10,20,30,40,50,60,70,80])
+
+            if not num_chk and not id_check:
+                print('Warning: still have unequal number of events or missing some event IDs.')
+
+        # trig_chan = mne.pick_channels(raw.info['ch_names'],
+        #                               include=['DC5', 'DC6', 'DC7', 'DC8'])
+        #
         # this is used if want to look at raw DC channel data
-        chan = raw._data[trig_chan, :]
+        # chan = raw._data[trig_chan, :]
         # test plot the trigger channels
         # plot_trigs(chan[0, :], y='DC5')
         # plot_trigs(chan[1, :], y='DC6')
         # plot_trigs(chan[2, :], y='DC7')
         # plot_trigs(chan[3, :], y='DC8')
 
-        # run process_triggers and then find_events and, if there's no events,
-        # try the old method?
-        # It might be ok if then the old method doesn't work (ie, doesn't have a text file)
-        # and returns None.
-        events = mne.find_events(raw, consecutive=True)
-        # now clean them
-        # TODO need to determine which events to take if a block is too long but otherwise setup correctly
-
-        #  I think I need yet ANOTHER function that, if there's more than 4 event ids,
-        #  to check if the distance between each event in an id is a set distance.
-        #  For every other event in a given id, if the distance is too short to the next event, remove that next event.
-        events = eeg.clean_events(events)
-        events = eeg.clean_trigger_blocks2(events)
-
-        #  For recording5, setting the trig threshold even lower to 0.5 fixes the issue
-        #  of events in 80/70 that should be in 60/50.
-        #  So all the crazy extra cleaning I tried to setup with _clean_events is unnecessary
-        #  (which is good, because this still didn't work)
-        # rm_idx, inject_events = eeg._check_events(events=events, sfreq=raw.info['sfreq'], dist_thresh=10000)
-
-        count = Counter(events[:, 2])
-        # TODO need to also do something if the above cleaning methods didn't work.
-        #  i.e., do not have an equal number of events
-        chk_arr = np.array(list(count.values()))
-        # if np.all(list(count.values())):
-        if np.all(chk_arr == chk_arr[0]):
-            events = fix_dc7(events)
-
+        # can probably combine this if statement with the above one.
         if not events.size > 0:
+            print('File has no events. Attempting to use old trigger processing method.')
             raw = old.process_older_recs(raw, fl=fl, wd=wd)
             events = mne.find_events(raw, consecutive=True)
 
@@ -327,8 +369,6 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-    # wd = os.getcwd()
-    # args = CLI.parse_args()
-    args = argparse.Namespace(filetype='fif')
-    wd = '/Volumes/kd2630/EDFs to deidentify for fede 11-13-2020/deidentified/deidentified fifs 1'
+    wd = os.getcwd()
+    args = CLI.parse_args()
     main(wd=wd, args=args)
