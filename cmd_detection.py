@@ -10,7 +10,10 @@ import traceback
 
 import eeg_functions as eeg
 
-
+# TODO have this script check the output script, if it exists, before analyzing a file and, if the file was already
+#  analyzed and has output in the file, skip the current file and do not re-analyze it.
+#  This way this script can be continuously run on a directory of files where new files can be continuously added
+#  without the older files being reanalyzed each time.
 mne.utils.set_log_level('ERROR')
 warnings.filterwarnings('ignore')
 CLI = argparse.ArgumentParser()
