@@ -1837,7 +1837,7 @@ def find_event_block_boundaries(events, dist_thresh):
 
     new_block_idxs = np.unique(np.concatenate((new_block_dist, new_block_id), axis=None))
     # add in the start and end!!!!!!!
-    new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs) - 1)))
+    new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs) - 1))).astype(int)
     new_block_idxs2.sort()
 
     return new_block_idxs2
@@ -2048,6 +2048,8 @@ def clean_event_id_pair(events, id_pair):
         rm_ix.append(all_1[len(all_1)-1])
         all_1 = all_1[:-1]
 
+    # this removes events where the next one is not the next ID in the matching pair
+    # e.g., current ID is 80. If next ID is not 70, then remove the current ID.
     check_1 = [events[[all_1 + 1], 2] != id2][0][0]
     rm_1 = list(all_1[check_1])
     rm_ix.extend(rm_1)
