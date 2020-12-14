@@ -358,7 +358,12 @@ def main(wd, args):
         if not os.path.exists(wd + '/fif_files/'):
             os.makedirs(wd + '/fif_files/')
 
+        if not os.path.exists(wd + '/event_files/'):
+            os.makedirs(wd + '/event_files/')
+
         raw.save(wd + '/fif_files/' + '/'+os.path.basename(fl)[:-4] + '-raw.fif', overwrite=True)
+        # also write events, b/c this preprocessing step is too complicated to just have the cmd script perform as well.
+        mne.write_events(wd + '/event_files/' + '/'+os.path.basename(fl)[:-4] + '-eve.fif', events)
 
 
 CLI.add_argument(
