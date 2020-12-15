@@ -1837,13 +1837,15 @@ def find_event_block_boundaries(events, dist_thresh):
 
     new_block_idxs = np.unique(np.concatenate((new_block_dist, new_block_id), axis=None))
     # add in the start and end!!!!!!!
-    new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs) - 1))).astype(int)
+    # NOTE, DON'T subtract 1 from the len of labels?? b/c when you index via slice later,
+    # you CAN use the actual length as the end point without an index out of range error???
+    new_block_idxs2 = np.concatenate((new_block_idxs, (0, len(labs)))).astype(int)  # (0, len(labs) - 1)
     new_block_idxs2.sort()
 
     return new_block_idxs2
 
 
-def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
+def clean_trigger_blocks2(events, dist_thresh=10000, min_block_size=12, max_block_size=32):
     # event_counts = Counter(events[:, 2])
     # event_ids = list(event_counts.keys())
     # event_ids.sort()
@@ -1896,8 +1898,18 @@ def clean_trigger_blocks2(events, dist_thresh=10000, block_size_thresh=12):
         end = new_block_idxs2[i]
         blockevents = events[start:end, 2]
         block_sizes.append((blockevents, len(blockevents)))
-        if len(blockevents) < block_size_thresh:
+        if len(blockevents) < min_block_size:
             rm_range = slice(start, end)
+            rm_idxs.append(rm_range)
+        # try adding another check if the block is too *long* and, if so,
+        # remove the last len(blockevents)-max_thresh events
+        # nope it's the start to start + max_thresh events that I want to keep..
+        # so the beginning of the indices to remove is block start + max_block_size
+        if len(blockevents) > max_block_size:
+            # rm_range_strt = len(blockevents) - max_block_size
+            rm_range_strt = start + max_block_size
+            rm_range_end = end
+            rm_range = slice(rm_range_strt, rm_range_end)
             rm_idxs.append(rm_range)
 
     # remove them all at once

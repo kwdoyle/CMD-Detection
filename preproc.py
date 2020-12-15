@@ -222,8 +222,6 @@ def clean_it(events):
     events3 = eeg.clean_trigger_blocks2(events2)
 
     count = Counter(events3[:, 2])
-    # TODO need to also do something if the above cleaning methods didn't work.
-    #  i.e., do not have an equal number of events
     chk_arr = np.array(list(count.values()))
     if len(chk_arr) == 0:
         print('Could not clean events.')
@@ -247,8 +245,6 @@ def process_file(raw, trig_thresh, trig_chans):
     raw = process_triggers(raw=raw, trig_thresh=trig_thresh, trig_chans=trig_chans)
     events = mne.find_events(raw, consecutive=True)
     # now clean them
-    # TODO need to determine which events to take if a block is too long but otherwise setup correctly
-    #  e.g., the case for recording3
     # do cleaning in single function
     # return an empty array if file has no triggers
     if events.size > 0:
@@ -306,13 +302,59 @@ def main(wd, args):
 
         if events.size > 0:
             # check event counts to determine if need to re-run without DC7
+            #  need to modify this check if counts are the same between each pair instead?
+            #  ie, (10,20), (30,40), (50,60), (70,80) ..even though these aren't the actual instruction pairs?
+            #  I think they're the pairs with how they get processed though, so it should be fine.
+            #  in ADDITION to this, I have to check how similar the numbers from the
+            #  (10,20) and (50,60) pairs are to their respective (30,40) and (70,80) pairs.
+            #  If they're off by some threshold value, then ignore DC7 and run the below loop.
             count = Counter(events[:, 2])
+            pairs = [(10,20), (30,40), (50,60), (70,80)]
+
+            ids_have = list(count.keys())
+            pairs_use = []
+            for p in pairs:
+                if p[0] in ids_have and p[1] in ids_have:
+                    pairs_use.append(p)
+
             id_check = any(eid in list(count.keys()) for eid in [10,20,50,60])
-            chk_arr = np.array(list(count.values()))
-            num_chk = np.all(chk_arr == chk_arr[0])
+            # don't use this num_chk--check same number per pair instead
+            # num_chk = np.all(chk_arr == chk_arr[0]) # so if this was FALSE, then the below would go b/c "not false"
+            num_count_chk = {}
+            num_count = {}
+            for pu in pairs_use:
+                vals = (count[pu[0]], count[pu[1]])
+                # stupid way to check if both numbers are the same
+                chk = len(set(vals)) != 1
+                num_count_chk[pu] = chk
+                # also save unique counts
+                num_count[pu] = np.unique(vals)
+
+            # per other pair set, if counts are off by more than, e,g, 1
+            # then do the below fix.
+            pairs_alt_use = []
+            count_thresh_chk = {}
+
+            if (10,20) in num_count.keys() and (30,40) in num_count.keys():
+                count1020 = num_count[(10,20)]
+                count3040 = num_count[(30,40)]
+                # TODO replace this "2" and the one below with an actual variable I can set
+                if any(abs(count1020 - count3040) > 2):
+                    count_thresh_chk["(10,20),(30,40)"] = True
+                else:
+                    count_thresh_chk["(10,20),(30,40)"] = False
+
+            if (50,60) in num_count.keys() and (70,80) in num_count.keys():
+                count5060 = num_count[(50,60)]
+                count7080 = num_count[(70,80)]
+                if any(abs(count5060 - count7080) > 2):
+                    count_thresh_chk["(50,60),(70,80)"] = True
+                else:
+                    count_thresh_chk["(50,60),(70,80)"] = False
 
             # essentially the opposite of the check that determines if fix_dc7 should be used
-            if id_check and not num_chk:
+            # if id_check and not num_chk:
+            if (id_check and any(list(num_count_chk.values()))) or any(list(count_thresh_chk.values())):
                 print('DC7 is unusable--re-running without it.')
                 events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC8'])
 
@@ -377,8 +419,6 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-    # wd = os.getcwd()
-    # args = CLI.parse_args()
-    args = argparse.Namespace(filetype='edf')
-    wd = '/Volumes/NeurocriticalCare/EEGData/Auditory/Consciousness/Converted/'
+    wd = os.getcwd()
+    args = CLI.parse_args()
     main(wd=wd, args=args)
