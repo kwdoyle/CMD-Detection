@@ -218,13 +218,16 @@ def fix_dc7(events):
 
 
 def clean_it(events):
-    events = eeg.clean_events(events)
-    events = eeg.clean_trigger_blocks2(events)
+    events2 = eeg.clean_events(events)
+    events3 = eeg.clean_trigger_blocks2(events2)
 
-    count = Counter(events[:, 2])
+    count = Counter(events3[:, 2])
     # TODO need to also do something if the above cleaning methods didn't work.
     #  i.e., do not have an equal number of events
     chk_arr = np.array(list(count.values()))
+    if len(chk_arr) == 0:
+        print('Could not clean events.')
+        return events
 
     # also need to check if events have all the IDs before fixing dc7
     ids_ideal = [10, 20, 30, 40, 50, 60, 70, 80]
@@ -235,9 +238,9 @@ def clean_it(events):
     # and do NOT have all 8 IDs
     if np.all(chk_arr == chk_arr[0]) and not ids_check:
         print('DC7 failure--start/stop not defined. Manually setting instead')
-        events = fix_dc7(events)
+        events3 = fix_dc7(events3)
 
-    return events
+    return events3
 
 
 def process_file(raw, trig_thresh, trig_chans):
@@ -325,9 +328,9 @@ def main(wd, args):
         # trig_chan = mne.pick_channels(raw.info['ch_names'],
         #                               include=['DC5', 'DC6', 'DC7', 'DC8'])
         #
-        # this is used if want to look at raw DC channel data
+        # # this is used if want to look at raw DC channel data
         # chan = raw._data[trig_chan, :]
-        # test plot the trigger channels
+        # # test plot the trigger channels
         # plot_trigs(chan[0, :], y='DC5')
         # plot_trigs(chan[1, :], y='DC6')
         # plot_trigs(chan[2, :], y='DC7')
@@ -374,6 +377,8 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-    wd = os.getcwd()
-    args = CLI.parse_args()
+    # wd = os.getcwd()
+    # args = CLI.parse_args()
+    args = argparse.Namespace(filetype='edf')
+    wd = '/Volumes/NeurocriticalCare/EEGData/Auditory/Consciousness/Converted/'
     main(wd=wd, args=args)
