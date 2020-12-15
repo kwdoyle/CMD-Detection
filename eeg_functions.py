@@ -2073,7 +2073,9 @@ def clean_events(events):
     if len(event_ids) % 2 == 0:
         id_pairs = [(event_ids[i], event_ids[i+1]) for i in range(0, len(event_ids), 2)]
     else:
-        raise ValueError('Uneven amount of event IDs found!')
+        # raise ValueError('Uneven amount of event IDs found!')
+        print('Uneven amount of event IDs found!')
+        return events
 
     out = []
     for pair in id_pairs:
@@ -2548,6 +2550,136 @@ def read_data2(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
     if np.all(np.unique(events[:, 2]) == np.arange(10, 90, 10)):
         use_ids = [20, 40, 60, 80]
         l_start, l_stop, r_start, r_stop = use_ids
+
+    # TODO I haven't actually tested this on old files yet...
+    # case for old files
+    elif np.all(np.unique(events[:, 2]) == np.arange(1, 5, 1)):
+        use_ids = [1, 2, 3, 4]
+        l_start, l_stop, r_start, r_stop = use_ids
+
+    # if hit this condition, then this is presumably a new file with messed up events.
+    # skip it for now.
+    else:
+        print('File has weird events. Skipping...')
+        return None
+
+    # filter for specific events to use (defaults to 20, 40, 60, 80; aka start/stop move after instruction ends
+    # [from new process_triggers function fede wrote to process triggers from fedebox])
+    event_idx = np.where([x in use_ids for x in events[:, 2]])[0]
+    # Need to check if event_idx is empty (I think this happens for the older files b/c none are 20, 40, 60, 80)
+    # if it is, then this causes events to become empty too
+    # althought I guess this really isn't needed if I'm defining the use_ids based off of
+    # the events themselves
+    if len(event_idx) != 0:
+        events = np.take(a=events, indices=event_idx, axis=0)
+
+    # Remove events for a specific hand if specified
+    if hand_use == "left":
+        print("using left hand")
+        trgs = np.array([x[2] for x in events])
+
+        keep_ix = np.logical_or(trgs == l_start, trgs == l_stop)
+        events = events[keep_ix]
+
+    elif hand_use == "right":
+        print("using right hand")
+        trgs = np.array([x[2] for x in events])
+
+        keep_ix = np.logical_or(trgs == r_start, trgs == r_stop)
+        events = events[keep_ix]
+
+    new_events = list()
+    for event in events:
+        # Generate new events in case we want to subsegment each trial into multiple epochs:
+        for repeat in range(n_epo_segments):
+            event_ = list(event)
+            # evenly distribution across the 10 seconds
+            event_[0] += repeat * raw.info['sfreq'] * 10. / n_epo_segments
+            new_events.append(event_)
+    events = np.array(new_events, int)
+
+    # Add trial information
+    # # identify unique trial (useful in case of epoch splitting)
+    trial_id = np.cumsum(np.diff(np.r_[events[0, 2], events[:, 2]]) != 0)
+    metadata = DataFrame(dict(id=events[:, 2], trial=trial_id))
+    # # give a unique column for movement versus rest
+    metadata['move'] = False
+    query_check = 'id in (' + str(l_start) + ', ' + str(r_start) + ')'
+    metadata.loc[metadata.query(query_check).index, 'move'] = True
+
+    # Segment data
+    epochs = mne.Epochs(raw, tmin=tmin, tmax=tmax,
+                        events=events, metadata=metadata,
+                        picks=picks, proj=False,
+                        baseline=None, preload=True)
+    return epochs
+
+
+# And now THIS is used to read/aggregate the data from the fifs and separate event files that have the cleaned
+# events FROM the fedebox.
+def read_data3(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
+               n_epo_segments=1, ref_chans=None, hand_use=None,
+               rename_chans=False, chan_dict=None):
+    """Parameters
+    raw_fname : str
+        file path of the raw.
+    tmin : float
+        epochs tmin
+    tmax : float
+        epochs tmax (each trial lasts for 10 second)
+    fmin : float
+        low-bound of bandpass filter.
+    fmax : float
+        high-bound of bandpass filter.
+    n_epo_segments : int
+        creates additional subevents in between each event. This allows
+        creating multiple epochs for the very same 10-second-long trial,
+        and thus increases the number of samples for the classifier.
+
+        Be sure to use a LeaveGroup CV if n_epo_segments > 1, so as to
+        ensure that the testing samples are not coming from trials
+        that where used during training.
+    """
+
+    # Read raw data
+    raw = mne.io.read_raw_fif(data, preload=True)
+    # rename channels if need to
+    if rename_chans:
+        if not chan_dict:
+            sys.exit("Need to specify a channel dictionary if renaming channels")
+        mne.rename_channels(raw.info, chan_dict)
+
+    picks = mne.pick_types(raw.info, eeg=False, stim=False, eog=False,
+                           ecg=False, misc=False, include=use_ch)
+    if ref_chans is None:
+        ref_chans = []
+    mne.set_eeg_reference(raw, ref_channels=ref_chans, copy=False)
+
+    # Filter
+    if (fmin is not None) and (fmax is not None):
+        raw.filter(fmin, fmax)
+
+    # Read events, and generate subevents
+    try:
+        events = mne.read_events(event_fl)
+    except AttributeError:
+        print("File has no triggers")
+        return None
+
+    # index first element b/c results from glob will be a list. can check if list is empty above,
+    # which implies no events were found for the file.
+    # wait no, fuck, the no events files will still have an event file saved
+
+
+    # TODO do this only if event ids are NOT 10 20 30 40, 50 60 70 80
+    #  and, if they are, then use the events r_start=60, r_stop=80, l_start=20, l_stop=40
+    #  I guess ignore all of this if triggers are 10 20 30 40 50 60 70 80?
+    # so stupid. make range end at 90 with step 10 so that 80 is the last value.
+    if np.all(np.unique(events[:, 2]) == np.arange(10, 90, 10)):
+        use_ids = [20, 40, 60, 80]
+        l_start, l_stop, r_start, r_stop = use_ids
+
+    # TODO need to test on files whose events didn't process correctly still (eg, don't have all 8 IDs)
 
     # TODO I haven't actually tested this on old files yet...
     # case for old files

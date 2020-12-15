@@ -7,13 +7,11 @@ import timeit
 import warnings
 import argparse
 import traceback
+from glob import glob
+import pandas as pd
 
 import eeg_functions as eeg
 
-# TODO have this script check the output script, if it exists, before analyzing a file and, if the file was already
-#  analyzed and has output in the file, skip the current file and do not re-analyze it.
-#  This way this script can be continuously run on a directory of files where new files can be continuously added
-#  without the older files being reanalyzed each time.
 mne.utils.set_log_level('ERROR')
 warnings.filterwarnings('ignore')
 CLI = argparse.ArgumentParser()
@@ -22,7 +20,9 @@ CLI = argparse.ArgumentParser()
 def main(args):
     cwd = args.cwd
     write_dir = args.write_dir
+    events_dir = args.events_dir
     num_job = args.num_job
+    combined_output_fl = args.combined_output_fl
     rawfiles = args.rawfiles
     nperm = args.nperm
 
@@ -60,7 +60,34 @@ def main(args):
         dat = rawfiles[i]
         print('Processing file ' + dat)
 
-        epochs = eeg.read_data2(data=dat,
+        flnm_chk = dat.split('/')[len(dat.split('/'))-1][:-8]
+        event_fl = glob(events_dir + '/' + flnm_chk + '-eve.fif')[0]
+
+        # Check if this file name has already been written to the output file. If so, can skip it.
+        # That way you can run this script over an existing directory of files, of which you can add new ones to
+        # without having to re-analyze the files that have already been analzyed.
+        combined_output_flname = glob(write_dir + '/' + combined_output_fl)
+
+        if len(combined_output_flname) > 0:
+            combined_output_flname = combined_output_flname[0]
+
+            combined_output = pd.read_csv(combined_output_flname, header=None)
+            if combined_output[4].str.contains(flnm_chk).any():
+                print('File ' + dat + ' has already been analyzed. Skipping...')
+                continue
+
+        else:
+            print('Combined model output file does not exist or incorrectly specified. '
+                  'Continuing without checking for previously analyzed files.')
+
+        # ugh, just use pandas to save and read the output files instead of csv reader.
+        #  That way I can more easily read by column b/c right now, the column names aren't defined.
+        #  ...but I GUESS the recording names will always be in the 4th column...
+        #  ..but maybe I should improve this anyway? but then combining the outputs will be more difficult..
+        #  ..can't just cat them all into a new file..
+
+        epochs = eeg.read_data3(data=dat,
+                                event_fl=event_fl,
                                 use_ch=use_ch,
                                 tmin=tmin,
                                 tmax=tmax,
@@ -131,6 +158,12 @@ CLI.add_argument(
 )
 
 CLI.add_argument(
+    "--events_dir",
+    type=str,
+    default='./event_files/'
+)
+
+CLI.add_argument(
     "--num_job",
     type=str,
     default='0'
@@ -141,6 +174,12 @@ CLI.add_argument(
     nargs="*",
     type=str,
     default=None
+)
+
+CLI.add_argument(
+    "--combined_output_fl",
+    type=str,
+    default='psd_out_all.csv'
 )
 
 # this argument is mainly to reduce number of permutations when testing
