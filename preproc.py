@@ -376,52 +376,54 @@ def main(wd, args):
             #  in ADDITION to this, I have to check how similar the numbers from the
             #  (10,20) and (50,60) pairs are to their respective (30,40) and (70,80) pairs.
             #  If they're off by some threshold value, then ignore DC7 and run the below loop.
-            # TODO replace this, up to the end of the 'for p in pairs' loop with the check_id_pairs function
+
+            #  replace this, up to the end of the 'for p in pairs' loop with the check_id_pairs function
             #  ..or put the rest of it in the function too?
-            count = Counter(events[:, 2])
-            pairs = [(10,20), (30,40), (50,60), (70,80)]
+            # count = Counter(events[:, 2])
+            # pairs = [(10,20), (30,40), (50,60), (70,80)]
+            #
+            # ids_have = list(count.keys())
+            # pairs_use = []
+            # for p in pairs:
+            #     if p[0] in ids_have and p[1] in ids_have:
+            #         pairs_use.append(p)
+            #
+            # id_check = any(eid in list(count.keys()) for eid in [10,20,50,60])
+            # # don't use this num_chk--check same number per pair instead
+            # # num_chk = np.all(chk_arr == chk_arr[0]) # so if this was FALSE, then the below would go b/c "not false"
+            # num_count_chk = {}
+            # num_count = {}
+            # for pu in pairs_use:
+            #     vals = (count[pu[0]], count[pu[1]])
+            #     # stupid way to check if both numbers are the same
+            #     chk = len(set(vals)) != 1
+            #     num_count_chk[pu] = chk
+            #     # also save unique counts
+            #     num_count[pu] = np.unique(vals)
+            #
+            # # per other pair set, if counts are off by more than, e,g, 1
+            # # then do the below fix.
+            # pairs_alt_use = []
+            # count_thresh_chk = {}
+            #
+            # if (10,20) in num_count.keys() and (30,40) in num_count.keys():
+            #     count1020 = num_count[(10,20)]
+            #     count3040 = num_count[(30,40)]
+            #     # replace this "2" and the one below with an actual variable I can set
+            #     if any(abs(count1020 - count3040) > 2):
+            #         count_thresh_chk["(10,20),(30,40)"] = True
+            #     else:
+            #         count_thresh_chk["(10,20),(30,40)"] = False
+            #
+            # if (50,60) in num_count.keys() and (70,80) in num_count.keys():
+            #     count5060 = num_count[(50,60)]
+            #     count7080 = num_count[(70,80)]
+            #     if any(abs(count5060 - count7080) > 2):
+            #         count_thresh_chk["(50,60),(70,80)"] = True
+            #     else:
+            #         count_thresh_chk["(50,60),(70,80)"] = False
 
-            ids_have = list(count.keys())
-            pairs_use = []
-            for p in pairs:
-                if p[0] in ids_have and p[1] in ids_have:
-                    pairs_use.append(p)
-
-            id_check = any(eid in list(count.keys()) for eid in [10,20,50,60])
-            # don't use this num_chk--check same number per pair instead
-            # num_chk = np.all(chk_arr == chk_arr[0]) # so if this was FALSE, then the below would go b/c "not false"
-            num_count_chk = {}
-            num_count = {}
-            for pu in pairs_use:
-                vals = (count[pu[0]], count[pu[1]])
-                # stupid way to check if both numbers are the same
-                chk = len(set(vals)) != 1
-                num_count_chk[pu] = chk
-                # also save unique counts
-                num_count[pu] = np.unique(vals)
-
-            # per other pair set, if counts are off by more than, e,g, 1
-            # then do the below fix.
-            pairs_alt_use = []
-            count_thresh_chk = {}
-
-            if (10,20) in num_count.keys() and (30,40) in num_count.keys():
-                count1020 = num_count[(10,20)]
-                count3040 = num_count[(30,40)]
-                # TODO replace this "2" and the one below with an actual variable I can set
-                if any(abs(count1020 - count3040) > 2):
-                    count_thresh_chk["(10,20),(30,40)"] = True
-                else:
-                    count_thresh_chk["(10,20),(30,40)"] = False
-
-            if (50,60) in num_count.keys() and (70,80) in num_count.keys():
-                count5060 = num_count[(50,60)]
-                count7080 = num_count[(70,80)]
-                if any(abs(count5060 - count7080) > 2):
-                    count_thresh_chk["(50,60),(70,80)"] = True
-                else:
-                    count_thresh_chk["(50,60),(70,80)"] = False
-
+            id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events)
             # essentially the opposite of the check that determines if fix_dc7 should be used
             # if id_check and not num_chk:
             if (id_check and any(list(num_count_chk.values()))) or any(list(count_thresh_chk.values())):
