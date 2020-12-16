@@ -217,6 +217,59 @@ def fix_dc7(events):
     return events
 
 
+def check_id_pairs(events):
+    count = Counter(events[:, 2])
+    pairs = [(10, 20), (30, 40), (50, 60), (70, 80)]
+
+    ids_have = list(count.keys())
+    pairs_use = []
+    for p in pairs:
+        if p[0] in ids_have and p[1] in ids_have:
+            pairs_use.append(p)
+
+    id_check = any(eid in list(count.keys()) for eid in [10, 20, 50, 60])
+    # don't use this num_chk--check same number per pair instead
+    # num_chk = np.all(chk_arr == chk_arr[0]) # so if this was FALSE, then the below would go b/c "not false"
+    num_count_chk = {}
+    num_count = {}
+    for pu in pairs_use:
+        vals = (count[pu[0]], count[pu[1]])
+        # stupid way to check if both numbers are the same
+        chk = len(set(vals)) != 1
+        num_count_chk[pu] = chk
+        # also save unique counts
+        num_count[pu] = np.unique(vals)
+
+    # per other pair set, if counts are off by more than, e,g, 1
+    # then do the below fix.
+    pairs_alt_use = []
+    count_thresh_chk = {}
+
+    if (10, 20) in num_count.keys() and (30, 40) in num_count.keys():
+        count1020 = num_count[(10, 20)]
+        count3040 = num_count[(30, 40)]
+        # TODO replace this "2" and the one below with an actual variable I can set
+        if any(abs(count1020 - count3040) > 2):
+            count_thresh_chk["(10,20),(30,40)"] = True
+        else:
+            count_thresh_chk["(10,20),(30,40)"] = False
+
+    if (50, 60) in num_count.keys() and (70, 80) in num_count.keys():
+        count5060 = num_count[(50, 60)]
+        count7080 = num_count[(70, 80)]
+        if any(abs(count5060 - count7080) > 2):
+            count_thresh_chk["(50,60),(70,80)"] = True
+        else:
+            count_thresh_chk["(50,60),(70,80)"] = False
+
+    # add checks for if the only pairs are (30,40) and (70,80)
+    # !!! actually jusrt need to make sure there's only 1 unique number
+    # for each pair instead of doing this
+    # if (30, 40) in num_count.keys() and not (10, 20) in num_count.keys():
+
+    return id_check, num_count, num_count_chk, count_thresh_chk
+
+
 def clean_it(events):
     events2 = eeg.clean_events(events)
     events3 = eeg.clean_trigger_blocks2(events2)
@@ -230,11 +283,26 @@ def clean_it(events):
     # also need to check if events have all the IDs before fixing dc7
     ids_ideal = [10, 20, 30, 40, 50, 60, 70, 80]
     ids_have = list(count.keys())
+    # wow, this is awful that I have "ids_check" and "id_check" as 2 separate variables.
     ids_check = all(eid in ids_have for eid in ids_ideal)
+
+    # id_pairs = check_id_pairs(events3)
+    id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events3)
+
+    # check if a single unique value for each id pair.
+    # this ensures there's the correct number of events within 30,40 and 70,80
+    # so that fix_dc7 will work correctly
+    id_pair_chk = {}
+    for key, value in num_count.items():
+        if len(value) == 1:
+            id_pair_chk[key] = True
+        else:
+            id_pair_chk[key] = False
 
     # manually set start/stop if all IDs have same number of events
     # and do NOT have all 8 IDs
-    if np.all(chk_arr == chk_arr[0]) and not ids_check:
+    # if np.all(chk_arr == chk_arr[0]) and not ids_check:
+    if all(list(id_pair_chk.values())) and not ids_check:
         print('DC7 failure--start/stop not defined. Manually setting instead')
         events3 = fix_dc7(events3)
 
@@ -308,6 +376,8 @@ def main(wd, args):
             #  in ADDITION to this, I have to check how similar the numbers from the
             #  (10,20) and (50,60) pairs are to their respective (30,40) and (70,80) pairs.
             #  If they're off by some threshold value, then ignore DC7 and run the below loop.
+            # TODO replace this, up to the end of the 'for p in pairs' loop with the check_id_pairs function
+            #  ..or put the rest of it in the function too?
             count = Counter(events[:, 2])
             pairs = [(10,20), (30,40), (50,60), (70,80)]
 
