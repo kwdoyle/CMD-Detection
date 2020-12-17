@@ -1954,8 +1954,8 @@ def _check_events(events, sfreq, dist_thresh=10000):
         start = to_check[i - 1]
         end = to_check[i]
 
-        print(f'Checking block {i} in range '
-              f'[{start}, {end}]')
+        print('Checking block {i} in range '
+              '[{start}, {end}]')
 
         block_events = events[start:end, :]
 
@@ -1981,14 +1981,14 @@ def _check_events(events, sfreq, dist_thresh=10000):
             diffs = np.diff(t_events[:, 0]) / sfreq
             bad_idx = np.where(np.logical_or(diffs < 27, diffs > 30))[0]
             if len(bad_idx):
-                print(f'Found bad {event_to_fix} events diff: ')
+                print('Found bad {event_to_fix} events diff: ')
                 for t_idx in bad_idx:
-                    print(f'\tEvent {t_idx + 1} @ {t_events[t_idx][0]} => '
-                          f'diff is {diffs[t_idx]}')
+                    print('\tEvent {t_idx + 1} @ {t_events[t_idx][0]} => '
+                          'diff is {diffs[t_idx]}')
                     should_remove = t_idx + 1 not in bad_idx
                     if should_remove:
                         print(
-                            f'\tShould remove {t_idx} @ {t_events[t_idx][0]}')
+                            '\tShould remove {t_idx} @ {t_events[t_idx][0]}')
                         # events_to_rm.append(t_events[t_idx][0])
                         # events_to_rm.append(t_idx)
                         event_sample_nums_to_rm.append(t_events[t_idx][0])
@@ -2009,24 +2009,24 @@ def _check_events(events, sfreq, dist_thresh=10000):
             else:
                 diff = (event[0] - t_start) / sfreq
                 if 2.6 > diff or diff > 2.8:
-                    print(f'Event {i_event} @ {event[0]} does not have the '
-                          f'preceding instruction in range (diff = {diff})')
+                    print('Event {i_event} @ {event[0]} does not have the '
+                          'preceding instruction in range (diff = {diff})')
                 if prev_inst is False:
                     prev_start = event[0] - round(2.71875 * sfreq)
                     prev_code = event[2] - 10
-                    print(f'\t Should inject [{prev_start}, 0, {prev_code}]')
+                    print('\t Should inject [{prev_start}, 0, {prev_code}]')
                     events_to_add.append([prev_start, 0, prev_code])
                 prev_inst = False
 
         event_counts = Counter(block_events[:, 2])
         print('This block event counts:')
         for t_name, t_id in _mcp_event_id.items():
-            print(f'\t{t_name} => {event_counts[t_id]}')
+            print('\t{t_name} => {event_counts[t_id]}')
         print('=====================================\n')
     event_counts = Counter(events[:, 2])
     print('Overall Event counts:')
     for t_name, t_id in _mcp_event_id.items():
-        print(f'\t{t_name} => {event_counts[t_id]}')
+        print('\t{t_name} => {event_counts[t_id]}')
 
     return events_to_rm, events_to_add
 
