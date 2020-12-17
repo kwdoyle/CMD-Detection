@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import csv
 import mne
 import timeit
 import warnings
@@ -71,8 +70,8 @@ def main(args):
         if len(combined_output_flname) > 0:
             combined_output_flname = combined_output_flname[0]
 
-            combined_output = pd.read_csv(combined_output_flname, header=None)
-            if combined_output[4].str.contains(flnm_chk).any():
+            combined_output = pd.read_csv(combined_output_flname)
+            if combined_output['rec_name'].str.contains(flnm_chk).any():
                 print('File ' + dat + ' has already been analyzed. Skipping...')
                 continue
 
@@ -114,6 +113,7 @@ def main(args):
         if not os.path.exists(cwd + '/event_plots_for_pipeline/'):
             os.makedirs(cwd + '/event_plots_for_pipeline/')
         eventplt.savefig(cwd + '/event_plots_for_pipeline/' + plt_name[:-8] + '.png')
+        eventplt.clf()
 
         print('Running pipeline with ' + str(nperm) + ' permutations')
         try:
@@ -128,9 +128,12 @@ def main(args):
                                        laplac_ref=laplac_ref)
 
             psd_out = psd_out + (dat,)
+            # to insert as columns, needs to be a list of a list..
+            tmp_df = pd.DataFrame([list(psd_out)], columns=['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
 
         except:
             psd_out = (0, 0, 0, 0, dat)
+            tmp_df = pd.DataFrame([list(psd_out)], columns=['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
             print(traceback.print_exc())
             print(rawfiles[i])
 
@@ -139,10 +142,10 @@ def main(args):
         print('Total time elapsed: ' + str(elapsed))
         print('\n')
 
-        # If the write_dir argument provided to the function has an end /, then this might not work
-        with open(write_dir + '/' + 'psd_out' + num_job + '.csv', 'a') as f:
-            writer = csv.writer(f)
-            writer.writerow(psd_out)
+        # write to file. if file has already been written to, this will not write the header a second time
+        filename = write_dir + '/' + 'psd_out' + num_job + '.csv'
+        with open(filename, 'a') as f:
+            tmp_df.to_csv(f, mode='a', header=not f.tell())
 
 
 CLI.add_argument(
