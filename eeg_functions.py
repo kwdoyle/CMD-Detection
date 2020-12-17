@@ -2503,7 +2503,7 @@ def process_triggers(raw, trig_chans=None):
 # the find_events function needing the consecutive=True argument
 def read_data2(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
                n_epo_segments=1, ref_chans=None, hand_use=None,
-               rename_chans=False, chan_dict=None):
+               rename_chans=False, chan_dict=None, event_fl=None):
     """Parameters
     raw_fname : str
         file path of the raw.
@@ -2555,7 +2555,7 @@ def read_data2(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
         print("File has no triggers")
         return None
 
-    # TODO do this only if event ids are NOT 10 20 30 40, 50 60 70 80
+    #  do this only if event ids are NOT 10 20 30 40, 50 60 70 80
     #  and, if they are, then use the events r_start=60, r_stop=80, l_start=20, l_stop=40
     #  I guess ignore all of this if triggers are 10 20 30 40 50 60 70 80?
     # so stupid. make range end at 90 with step 10 so that 80 is the last value.
@@ -2563,7 +2563,6 @@ def read_data2(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
         use_ids = [20, 40, 60, 80]
         l_start, l_stop, r_start, r_stop = use_ids
 
-    # TODO I haven't actually tested this on old files yet...
     # case for old files
     elif np.all(np.unique(events[:, 2]) == np.arange(1, 5, 1)):
         use_ids = [1, 2, 3, 4]
@@ -2683,7 +2682,7 @@ def read_data3(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
     # wait no, fuck, the no events files will still have an event file saved
 
 
-    # TODO do this only if event ids are NOT 10 20 30 40, 50 60 70 80
+    #  do this only if event ids are NOT 10 20 30 40, 50 60 70 80
     #  and, if they are, then use the events r_start=60, r_stop=80, l_start=20, l_stop=40
     #  I guess ignore all of this if triggers are 10 20 30 40 50 60 70 80?
     # so stupid. make range end at 90 with step 10 so that 80 is the last value.
@@ -2691,9 +2690,6 @@ def read_data3(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
         use_ids = [20, 40, 60, 80]
         l_start, l_stop, r_start, r_stop = use_ids
 
-    # TODO need to test on files whose events didn't process correctly still (eg, don't have all 8 IDs)
-
-    # TODO I haven't actually tested this on old files yet...
     # case for old files
     elif np.all(np.unique(events[:, 2]) == np.arange(1, 5, 1)):
         use_ids = [1, 2, 3, 4]

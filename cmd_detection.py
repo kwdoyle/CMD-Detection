@@ -60,7 +60,14 @@ def main(args):
         print('Processing file ' + dat)
 
         flnm_chk = dat.split('/')[len(dat.split('/'))-1][:-8]
-        event_fl = glob(events_dir + '/' + flnm_chk + '-eve.fif')[0]
+        event_fl = glob(events_dir + '/' + flnm_chk + '-eve.fif')
+        # this should allow this script to analyze pre and post fede box recordings and will set the event file
+        # if one exists
+        if len(event_fl) > 0:
+            event_fl = event_fl[0]
+            read_func = eeg.read_data3
+        else:
+            read_func = eeg.read_data2
 
         # Check if this file name has already been written to the output file. If so, can skip it.
         # That way you can run this script over an existing directory of files, of which you can add new ones to
@@ -85,15 +92,15 @@ def main(args):
         #  ..but maybe I should improve this anyway? but then combining the outputs will be more difficult..
         #  ..can't just cat them all into a new file..
 
-        epochs = eeg.read_data3(data=dat,
-                                event_fl=event_fl,
-                                use_ch=use_ch,
-                                tmin=tmin,
-                                tmax=tmax,
-                                fmin=fmin,
-                                fmax=fmax,
-                                n_epo_segments=n_epo_segments,
-                                hand_use=None)
+        epochs = read_func(data=dat,
+                           event_fl=event_fl,
+                           use_ch=use_ch,
+                           tmin=tmin,
+                           tmax=tmax,
+                           fmin=fmin,
+                           fmax=fmax,
+                           n_epo_segments=n_epo_segments,
+                           hand_use=None)
 
         if not epochs:
             print('\n')
