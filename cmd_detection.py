@@ -104,6 +104,13 @@ def main(args):
 
         if not epochs:
             print('\n')
+            # save file with null data as well if no epochs
+            psd_out = (0, 0, 0, 0, dat)
+            tmp_df = pd.DataFrame([list(psd_out)], columns=['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
+            filename = write_dir + '/' + 'psd_out' + num_job + '.csv'
+            with open(filename, 'a') as f:
+                tmp_df.to_csv(f, mode='a', index=False, header=not f.tell())
+
             continue
 
         # need to include the epoch-fixing in this script too. This pipeline also won't run if mne.Epochs rejects
@@ -152,7 +159,7 @@ def main(args):
         # write to file. if file has already been written to, this will not write the header a second time
         filename = write_dir + '/' + 'psd_out' + num_job + '.csv'
         with open(filename, 'a') as f:
-            tmp_df.to_csv(f, mode='a', header=not f.tell())
+            tmp_df.to_csv(f, mode='a', index=False, header=not f.tell())
 
 
 CLI.add_argument(
