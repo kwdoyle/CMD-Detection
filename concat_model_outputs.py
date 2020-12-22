@@ -27,4 +27,10 @@ for fl in files:
 
 newfile = mainfile.append(dfs)
 
-newfile.to_csv('./psd_out_all.csv', index=False)
+# quality check on dataframe before overwriting
+test_index = pd.Index(['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
+
+if newfile.columns.identical(test_index) and len(newfile) > len(mainfile):
+    newfile.to_csv('./psd_out_all.csv', index=False)
+else:
+    print("Data to save has messed up columns or is no different than existing data. Data will not be overwritten.")
