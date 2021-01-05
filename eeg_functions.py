@@ -2212,7 +2212,8 @@ def insert_missing_chans(raw, missing, sfreq, ch_type='eeg'):
 
 def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
               n_epo_segments=1, ref_chans=None, hand_use=None,
-              rename_chans=False, chan_dict=None, insert_missing=False):
+              rename_chans=False, chan_dict=None, insert_missing=False,
+              event_fl=None):
     """Parameters
     raw_fname : str
         file path of the raw.
@@ -2757,8 +2758,13 @@ def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=5
 
 
 def fix_epochs(epochs, good_len=10):  # , r_start=60, r_stop=80, l_start=20, l_stop=40):
-    if np.all(np.unique(epochs.events[:, 2]) == np.arange(10, 90, 10)):
+    if np.all(np.unique(epochs.events[:, 2]) == np.arange(20, 90, 20)):
         use_ids = [20, 40, 60, 80]
+        l_start, l_stop, r_start, r_stop = use_ids
+
+    # case if using the start of the spoken command as the events, but I don't think this will ever be the case
+    elif np.all(np.unique(epochs.events[:, 2]) == np.arange(10, 80, 20)):
+        use_ids = [10, 30, 50, 70]
         l_start, l_stop, r_start, r_stop = use_ids
 
     # case for old files
