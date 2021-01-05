@@ -65,9 +65,9 @@ def main(args):
         # if one exists
         if len(event_fl) > 0:
             event_fl = event_fl[0]
-            read_func = eeg.read_data3
+            read_func = eeg.read_data_fedebox
         else:
-            read_func = eeg.read_data2
+            read_func = eeg.read_data
 
         # Check if this file name has already been written to the output file. If so, can skip it.
         # That way you can run this script over an existing directory of files, of which you can add new ones to
