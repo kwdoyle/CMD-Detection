@@ -11,6 +11,7 @@ pd.options.mode.chained_assignment = None
 # NOTE: can get the model output dataframe w/ cmd significance Y/N in a column per recording
 # from read_file2's output
 
+
 def find_column(df, namecols):
     col_ix = np.concatenate([np.where(df.columns.str.contains(x))[0] for x in namecols])
     countix = Counter(col_ix)
@@ -37,7 +38,7 @@ def find_signif_files2(x, orig_dat):
     return new_df
 
 
-def read_file2(input_file):
+def read_file2(input_file, rm_mcsp_cs=True):
     model_data = pd.read_csv(input_file)
     # wow, wtf, I didn't remove CS and MCSp recordings in this?????
     # not explicitly necessary with newer analyzed files as I don't put them in separate folders
@@ -52,8 +53,9 @@ def read_file2(input_file):
     fname_col = find_column(df=model_data, namecols=['rec_name', 'recname', 'rec.name', 'rec name',
                                                      'fname', 'filename', 'just_filename', 'just_fname'])
 
-    model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
-    model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
+    if rm_mcsp_cs:
+        model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
+        model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
     # remove rows where model failed to run (AUC == NaN or == 0)
     bad_recs = model_data[pd.isnull(model_data.AUC) | model_data.AUC == 0]
     model_data.drop(bad_recs.index, inplace=True)
