@@ -64,14 +64,18 @@ def read_file2(input_file, rm_mcsp_cs=True):
 
     model_data['pvalue'] = pd.to_numeric(model_data['pvalue'])
     # extract MRNs
-    try:
-        model_data['mrn'] = model_data[fname_col].str.split('_').apply(lambda x: x[0]).astype('int')
-    except ValueError:
+    # maybe always extract from the full path..?
+#    try:
+#        model_data['mrn'] = model_data[fname_col].str.split('_').apply(lambda x: x[0]).astype('int')
+#    except ValueError:
         # print('Getting MRNs from full file path instead..')
         # model_data['mrn'] = model_data['rec_name'].str.split('/').apply(lambda x: x[2]).str.split('_').apply(
           #  lambda x: x[0]).astype('int')
-        use = model_data[fname_col].str.split('/').apply(lambda x: x[len(x) - 1])
-        model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).astype('int')
+    use = model_data[fname_col].str.split('/').apply(lambda x: x[len(x) - 1])
+    try:
+        model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '').astype('int')
+    except ValueError:
+        model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '')
     # FDR correct to obtain significant files
     model_data_grp = model_data.groupby('mrn')
     fdr_pvals = pd.DataFrame(model_data_grp.apply(lambda x: fdr(x.pvalue))).reset_index()

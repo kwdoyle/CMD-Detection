@@ -98,7 +98,7 @@ def main(args):
                 dir_use = 'Converted/No_MRN_Found/'
                 # continue
         elif process_type == "control":
-            pname = '_'.join(pname.split(', '))
+            pname = '_'.join(pname.split(','))
             pmrn = pname
             dir_use = 'Converted/'
         else:
