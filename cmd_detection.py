@@ -124,9 +124,9 @@ def main(args):
         eventplt = mne.viz.plot_events(epochs.events, show=False)
         plt_name = os.path.basename(dat).split('/')[len(os.path.basename(dat).split('/')) - 1]
 
-        if not os.path.exists(cwd + '/event_plots_for_pipeline/'):
-            os.makedirs(cwd + '/event_plots_for_pipeline/')
-        eventplt.savefig(cwd + '/event_plots_for_pipeline/' + plt_name[:-8] + '.png')
+        if not os.path.exists('./event_plots_for_pipeline/'):
+            os.makedirs('./event_plots_for_pipeline/')
+        eventplt.savefig('./event_plots_for_pipeline/' + plt_name[:-8] + '.png')
         eventplt.clf()
 
         print('Running pipeline with ' + str(nperm) + ' permutations')
