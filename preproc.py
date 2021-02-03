@@ -23,10 +23,33 @@ CLI = argparse.ArgumentParser()
 #  just to check if a file was recorded properly
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def plot_trigs(x, y):
     plt.figure().suptitle(y)
     plt.plot(x)
     plt.show()
+
+
+def check_dc_chans(raw):
+    # this is used if want to look at raw DC channel data
+    trig_chan = mne.pick_channels(raw.info['ch_names'],
+                                  include=['DC5', 'DC6', 'DC7', 'DC8'])
+    chan = raw._data[trig_chan, :]
+    # test plot the trigger channels
+    plot_trigs(chan[0, :], y='DC5')
+    plot_trigs(chan[1, :], y='DC6')
+    plot_trigs(chan[2, :], y='DC7')
+    plot_trigs(chan[3, :], y='DC8')
 
 
 def process_triggers(raw, trig_thresh=2, trig_chans=None):
@@ -324,6 +347,17 @@ def process_file(raw, trig_thresh, trig_chans):
 
 
 def main(wd, args):
+    # make directories first
+    if not os.path.exists(wd + '/event_plots/'):
+        os.makedirs(wd + '/event_plots')
+
+    if not os.path.exists(wd + '/fif_files/'):
+        os.makedirs(wd + '/fif_files/')
+
+    if not os.path.exists(wd + '/event_files/'):
+        os.makedirs(wd + '/event_files/')
+
+
     filetype = args.filetype
     if filetype == 'edf':
         extension = '.edf'
@@ -343,6 +377,12 @@ def main(wd, args):
     # process files
     for fl in files:
         print("Processing file: " + os.path.basename(fl))
+        # First check if file was already processed. If so, skip it
+        if not args.force_reprocess:
+            if os.path.exists(wd + '/fif_files/' + '/' + os.path.basename(fl)[:-4] + '-raw.fif'):
+                print('file already processed, skipping..')
+                continue
+
         # Might have .fif raw, unprocessed files if reading in de-identified files saved using mne.
         if filetype == 'edf':
             raw = mne.io.read_raw_edf(fl, preload=True, misc=exclude)
@@ -354,6 +394,9 @@ def main(wd, args):
         # montage = mne.channels.read_montage('standard_1020')
         montage = mne.channels.make_standard_montage('standard_1020')
         raw.set_montage(montage, on_missing='ignore')
+
+        # un-comment if want to check dc channel data
+        # check_dc_chans(raw)
 
         # new trigger processing function
         # so modifying the trig thresh also helps
@@ -368,61 +411,7 @@ def main(wd, args):
         #  TODO might also need to change the trig_thresh. Not sure if 0.5 will always be ok, but it seems to be so far.
         events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC7', 'DC8'])
 
-        if events.size > 0:
-            # check event counts to determine if need to re-run without DC7
-            #  need to modify this check if counts are the same between each pair instead?
-            #  ie, (10,20), (30,40), (50,60), (70,80) ..even though these aren't the actual instruction pairs?
-            #  I think they're the pairs with how they get processed though, so it should be fine.
-            #  in ADDITION to this, I have to check how similar the numbers from the
-            #  (10,20) and (50,60) pairs are to their respective (30,40) and (70,80) pairs.
-            #  If they're off by some threshold value, then ignore DC7 and run the below loop.
-
-            #  replace this, up to the end of the 'for p in pairs' loop with the check_id_pairs function
-            #  ..or put the rest of it in the function too?
-            # count = Counter(events[:, 2])
-            # pairs = [(10,20), (30,40), (50,60), (70,80)]
-            #
-            # ids_have = list(count.keys())
-            # pairs_use = []
-            # for p in pairs:
-            #     if p[0] in ids_have and p[1] in ids_have:
-            #         pairs_use.append(p)
-            #
-            # id_check = any(eid in list(count.keys()) for eid in [10,20,50,60])
-            # # don't use this num_chk--check same number per pair instead
-            # # num_chk = np.all(chk_arr == chk_arr[0]) # so if this was FALSE, then the below would go b/c "not false"
-            # num_count_chk = {}
-            # num_count = {}
-            # for pu in pairs_use:
-            #     vals = (count[pu[0]], count[pu[1]])
-            #     # stupid way to check if both numbers are the same
-            #     chk = len(set(vals)) != 1
-            #     num_count_chk[pu] = chk
-            #     # also save unique counts
-            #     num_count[pu] = np.unique(vals)
-            #
-            # # per other pair set, if counts are off by more than, e,g, 1
-            # # then do the below fix.
-            # pairs_alt_use = []
-            # count_thresh_chk = {}
-            #
-            # if (10,20) in num_count.keys() and (30,40) in num_count.keys():
-            #     count1020 = num_count[(10,20)]
-            #     count3040 = num_count[(30,40)]
-            #     # replace this "2" and the one below with an actual variable I can set
-            #     if any(abs(count1020 - count3040) > 2):
-            #         count_thresh_chk["(10,20),(30,40)"] = True
-            #     else:
-            #         count_thresh_chk["(10,20),(30,40)"] = False
-            #
-            # if (50,60) in num_count.keys() and (70,80) in num_count.keys():
-            #     count5060 = num_count[(50,60)]
-            #     count7080 = num_count[(70,80)]
-            #     if any(abs(count5060 - count7080) > 2):
-            #         count_thresh_chk["(50,60),(70,80)"] = True
-            #     else:
-            #         count_thresh_chk["(50,60),(70,80)"] = False
-
+        if events.size > 0 and not args.force_old_method:
             id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events)
             # essentially the opposite of the check that determines if fix_dc7 should be used
             # if id_check and not num_chk:
@@ -439,19 +428,8 @@ def main(wd, args):
             if not num_chk and not id_check:
                 print('Warning: still have unequal number of events or missing some event IDs.')
 
-        # trig_chan = mne.pick_channels(raw.info['ch_names'],
-        #                               include=['DC5', 'DC6', 'DC7', 'DC8'])
-        #
-        # # this is used if want to look at raw DC channel data
-        # chan = raw._data[trig_chan, :]
-        # # test plot the trigger channels
-        # plot_trigs(chan[0, :], y='DC5')
-        # plot_trigs(chan[1, :], y='DC6')
-        # plot_trigs(chan[2, :], y='DC7')
-        # plot_trigs(chan[3, :], y='DC8')
-
         # can probably combine this if statement with the above one.
-        if not events.size > 0:
+        if not events.size > 0 or args.force_old_method:
             print('File has no events. Attempting to use old trigger processing method.')
             raw = old.process_older_recs(raw, fl=fl, wd=wd)
             events = mne.find_events(raw, consecutive=True)
@@ -465,19 +443,10 @@ def main(wd, args):
 
         eventplt.suptitle(plt_name)
         # save plots of events to see if preprocessing was successful
-        if not os.path.exists(wd + '/event_plots/'):
-            os.makedirs(wd + '/event_plots')
-
         eventplt.savefig(wd + '/event_plots/' + plt_name[:-4] + '.png')
 
         # Save fif files in their own directory for each conscious state group
         # create the fif files directory if it doesn't already exist
-        if not os.path.exists(wd + '/fif_files/'):
-            os.makedirs(wd + '/fif_files/')
-
-        if not os.path.exists(wd + '/event_files/'):
-            os.makedirs(wd + '/event_files/')
-
         raw.save(wd + '/fif_files/' + '/'+os.path.basename(fl)[:-4] + '-raw.fif', overwrite=True)
         # also write events, b/c this preprocessing step is too complicated to just have the cmd script perform as well.
         mne.write_events(wd + '/event_files/' + '/'+os.path.basename(fl)[:-4] + '-eve.fif', events)
@@ -487,6 +456,22 @@ CLI.add_argument(
     "--filetype",
     type=str,
     default='edf'
+)
+
+CLI.add_argument(
+    "--force_reprocess",
+    type=str2bool,
+    nargs='?',
+    const=True,
+    default=False
+)
+
+CLI.add_argument(
+    "--force_old_method",
+    type=str2bool,
+    nargs='?',
+    const=True,
+    default=False
 )
 
 

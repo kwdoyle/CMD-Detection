@@ -2204,7 +2204,9 @@ def insert_missing_chans(raw, missing, sfreq, ch_type='eeg'):
     raw.add_channels([fakechans], force_update_info=True)
 
     # reset montage after inserting new channels
-    montage = mne.channels.read_montage('standard_1020')
+    # don't do this now??? or actually do? idk
+    # montage = mne.channels.read_montage('standard_1020')
+    montage = mne.channels.make_standard_montage('standard_1020')
     raw.set_montage(montage)
 
     return raw
