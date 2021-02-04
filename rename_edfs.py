@@ -151,7 +151,7 @@ CLI.add_argument(
 CLI.add_argument(
     "--file",
     type=str,
-    default='/Volumes/NeurocriticalCare/EEGData/Auditory/Auditory Studies Log.xlsx'
+    default='/Volumes/groups/NICU/Clinical Research Coordinators/Studies & Screening/General Screening Log.xlsx'
 )
 
 CLI.add_argument(
