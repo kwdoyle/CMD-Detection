@@ -26,13 +26,18 @@ def main(args):
     # extract date and time from edf file, find the MRN for the patient name
     # from the edf filename in the excel table, and then rename and move.
 
+    # make sure 0 wasn't specified for sheet
+    if args.sheet == 0:
+        raise ValueError("Don't specify 0 as first sheet--use 1 instead")
+
     flname = args.file
+    sheet_idx = args.sheet - 1  # subtract 1 b/c first sheet is actually 0-index
     process_type = args.ptype
     cwd = args.cwd
     failed_rename = args.failed_rename
     save_noname = args.save_noname
 
-    ptclass = pd.read_excel(flname)
+    ptclass = pd.read_excel(flname, sheet_name=sheet_idx)
     # holy shit, the column names change ever so slightly whenever a new file is used.
     # try to find the relevant columns instead
     # I'm taking a gamble by taking the first match if there's more than one.
@@ -152,6 +157,12 @@ CLI.add_argument(
     "--file",
     type=str,
     default='/Volumes/groups/NICU/Clinical Research Coordinators/Studies & Screening/General Screening Log.xlsx'
+)
+
+CLI.add_argument(
+    "--sheet",
+    type=int,
+    default=1
 )
 
 CLI.add_argument(
