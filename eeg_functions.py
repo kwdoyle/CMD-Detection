@@ -842,6 +842,10 @@ def shift_events(events, sfreq, start_right=4, start_left=2, stop_right=5, stop_
     kmL_np = np.array(kmL)
     smL_np = np.array(smL)
 
+    if len(smL_np) == 0 or len(smR_np) == 0:
+        print('file only has left or right hand events--canceling shift')
+        return None
+
     # subtract the n-1th of kmR from the nth of smR
     # Right hand
     kri = []
@@ -2306,6 +2310,8 @@ def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
     events = shift_events(events, sfreq, start_right=3, start_left=1, stop_right=4, stop_left=2)
     # make sure the events changed
     # assert (np.all(old_events == events) == False)
+    if events is None:
+        return None
 
     # Remove events for a specific hand
     if hand_use == "left":
@@ -2636,7 +2642,7 @@ def process_triggers(raw, trig_chans=None):
 # events FROM the fedebox.
 def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
                       n_epo_segments=1, ref_chans=None, hand_use=None,
-                      rename_chans=False, chan_dict=None):
+                      rename_chans=False, chan_dict=None, insert_missing=False):
     """Parameters
     raw_fname : str
         file path of the raw.
@@ -2660,6 +2666,13 @@ def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=5
 
     # Read raw data
     raw = mne.io.read_raw_fif(data, preload=True)
+
+    if insert_missing:
+        missing_chans = list(np.setdiff1d(use_ch, raw.info['ch_names']))
+        if missing_chans:
+            raw = insert_missing_chans(raw=raw, missing=missing_chans, sfreq=raw.info['sfreq'])
+            raw.info['bads'] = missing_chans
+
     # rename channels if need to
     if rename_chans:
         if not chan_dict:
