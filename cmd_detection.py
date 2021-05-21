@@ -16,6 +16,16 @@ warnings.filterwarnings('ignore')
 CLI = argparse.ArgumentParser()
 
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 def main(args):
     cwd = args.cwd
     write_dir = args.write_dir
@@ -24,6 +34,7 @@ def main(args):
     combined_output_fl = args.combined_output_fl
     rawfiles = args.rawfiles
     nperm = args.nperm
+    is_control = args.is_control
 
     os.chdir(cwd)
 
@@ -100,7 +111,8 @@ def main(args):
                            fmin=fmin,
                            fmax=fmax,
                            n_epo_segments=n_epo_segments,
-                           hand_use=None)
+                           hand_use=None,
+                           is_control=is_control)
 
         if not epochs:
             print('\n')
@@ -204,6 +216,14 @@ CLI.add_argument(
     "--nperm",
     type=int,
     default=500
+)
+
+CLI.add_argument(
+    "--is_control",
+    type=str2bool,
+    nargs='?',
+    const=True,
+    default=False
 )
 
 

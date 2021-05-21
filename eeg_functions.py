@@ -823,7 +823,22 @@ def reject_outliers(data, m=2.):
 # ## shift events function
 # ==============================================================================
 
-def shift_events(events, sfreq, start_right=4, start_left=2, stop_right=5, stop_left=3):
+def shift_events(events, sfreq, is_control, start_right=4, start_left=2, stop_right=5, stop_left=3):
+    def shift_notmove(move, notmove, sfreq):
+        arr = []
+        for i in range(1, len(move)):
+            arr.append((move[i] - notmove[i - 1]) - (15 * sfreq))
+        out = round(np.median(reject_outliers(np.array(arr))))
+
+        return out
+
+    def shift_move(move, notmove, sfreq):
+        arr = []
+        for i in range(0, len(notmove)):
+            arr.append((notmove[i] - move[i]) - (10 * sfreq))
+        out = round(np.median(arr))
+
+        return out
 
     # Can do this by converting the events array to a pandas dataframe
     events_df = pd.DataFrame(events, columns=['samp', 'na', 'trig'], copy=True)
@@ -842,48 +857,63 @@ def shift_events(events, sfreq, start_right=4, start_left=2, stop_right=5, stop_
     kmL_np = np.array(kmL)
     smL_np = np.array(smL)
 
-    if len(smL_np) == 0 or len(smR_np) == 0:
+    if (len(smL_np) == 0 or len(smR_np) == 0) and not is_control:
         print('file only has left or right hand events--canceling shift')
         return None
 
-    # subtract the n-1th of kmR from the nth of smR
-    # Right hand
-    kri = []
-    for i in range(0, len(smR_np)):
-        kri.append((smR_np[i] - kmR_np[i]) - (10 * sfreq))
-        # this works for kri.
-    kri_med = round(np.median(kri))
+    # # subtract the n-1th of kmR from the nth of smR
+    # # Right hand
+    # kri = []
+    # for i in range(0, len(smR_np)):
+    #     kri.append((smR_np[i] - kmR_np[i]) - (10 * sfreq))
+    #     # this works for kri.
+    # kri_med = round(np.median(kri))
+    #
+    # # it = iter(kmR_np)
+    # sri = []
+    # for i in range(1, len(kmR_np)):
+    #     sri.append((kmR_np[i] - smR_np[i-1]) - (15 * sfreq))
+    #     # this includes the huge gap that might be present between different runs of R to L...
+    # # get rid of outlier
+    # sri_med = round(np.median(reject_outliers(np.array(sri))))
+    #
+    # # Left hand
+    # kli = []
+    # for i in range(0, len(smL_np)):
+    #     kli.append((smL_np[i] - kmL_np[i]) - (10 * sfreq))
+    # kli_med = round(np.median(kli))
+    #
+    # sli = []
+    # for i in range(1, len(kmL_np)):
+    #     sli.append((kmL_np[i] - smL_np[i-1]) - (15 * sfreq))
+    # sli_med = round(np.median(reject_outliers(np.array(sli))))
 
-    # it = iter(kmR_np)
-    sri = []
-    for i in range(1, len(kmR_np)):
-        sri.append((kmR_np[i] - smR_np[i-1]) - (15 * sfreq))
-        # this includes the huge gap that might be present between different runs of R to L...
-    # get rid of outlier
-    sri_med = round(np.median(reject_outliers(np.array(sri))))
+    if len(kmR_np) > 0 and len(smR_np) > 0:
+        kri_med = shift_move(move=kmR_np, notmove=smR_np, sfreq=sfreq)
+        sri_med = shift_notmove(move=kmR_np, notmove=smR_np, sfreq=sfreq)
+    else:
+        kri_med = np.nan
+        sri_med = np.nan
 
-    # Left hand
-    kli = []
-    for i in range(0, len(smL_np)):
-        kli.append((smL_np[i] - kmL_np[i]) - (10 * sfreq))
-    kli_med = round(np.median(kli))
+    if len(kmL_np) > 0 and len(smL_np) > 0:
+        kli_med = shift_move(move=kmL_np, notmove=smL_np, sfreq=sfreq)
+        sli_med = shift_notmove(move=kmL_np, notmove=smL_np, sfreq=sfreq)
+    else:
+        kli_med = np.nan
+        sli_med = np.nan
 
-    sli = []
-    for i in range(1, len(kmL_np)):
-        sli.append((kmL_np[i] - smL_np[i-1]) - (15 * sfreq))
-    sli_med = round(np.median(reject_outliers(np.array(sli))))
 
     # just return all these values for now
     # return kri_avg, sri_avg, kli_avg, sli_avg
     # test editing events by converting to pandas df and then back to np array
 
-    if np.isnan(kri_med) is not True:
+    if not np.isnan(kri_med):
         newkmR = kmR + np.int64(kri_med)
         newsmR = smR + np.int64(sri_med)
         events_df.loc[events_df['trig'] == start_right, 'samp'] = newkmR
         events_df.loc[events_df['trig'] == stop_right, 'samp'] = newsmR
 
-    if np.isnan(kli_med) is not True:
+    if not np.isnan(kli_med):
         newkmL = kmL + np.int64(kli_med)
         newsmL = smL + np.int64(sli_med)
         events_df.loc[events_df['trig'] == start_left, 'samp'] = newkmL
@@ -2219,7 +2249,7 @@ def insert_missing_chans(raw, missing, sfreq, ch_type='eeg'):
 def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
               n_epo_segments=1, ref_chans=None, hand_use=None,
               rename_chans=False, chan_dict=None, insert_missing=False,
-              event_fl=None):
+              event_fl=None, is_control=False):
     """Parameters
     raw_fname : str
         file path of the raw.
@@ -2307,7 +2337,7 @@ def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
 
     # old_events = events.copy()
     # reset trigger from the onset of instruction to offset of instruction
-    events = shift_events(events, sfreq, start_right=3, start_left=1, stop_right=4, stop_left=2)
+    events = shift_events(events, sfreq, start_right=3, start_left=1, stop_right=4, stop_left=2, is_control=is_control)
     # make sure the events changed
     # assert (np.all(old_events == events) == False)
     if events is None:
@@ -2497,7 +2527,7 @@ def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
 # events FROM the fedebox.
 def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
                       n_epo_segments=1, ref_chans=None, hand_use=None,
-                      rename_chans=False, chan_dict=None, insert_missing=False):
+                      rename_chans=False, chan_dict=None, insert_missing=False, is_control=False):
     """Parameters
     raw_fname : str
         file path of the raw.
