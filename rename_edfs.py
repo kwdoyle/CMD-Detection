@@ -52,12 +52,12 @@ def main(args):
     # get edf and text files from the pre-analysis directory
     edfiles = []
     for f in os.listdir(cwd):
-        if f.lower().endswith(".edf"):
+        if f.lower().endswith(".edf") and not f.lower().startswith("._"):
             edfiles.append(f)
 
     txtfiles = []
     for f in os.listdir(cwd):
-        if f.endswith(".txt"):
+        if f.endswith(".txt") and not f.startswith("._"):
             txtfiles.append(f)
 
     if process_type not in ('control', 'patient'):
