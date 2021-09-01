@@ -136,6 +136,8 @@ def get_event_rows(event_tab, sfreq):
         if (
                 ('right' in str(row[len(row) - 1]).lower() and 'hand' in str(row[len(row) - 1]).lower()) or
                 ('open' in str(row[len(row) - 1]).lower() and 'right' in str(row[len(row) - 1]).lower()) or
+
+                ('motor' in str(row[len(row) - 1]).lower() and 'right' in str(row[len(row) - 1]).lower()) or
                 # I think the events demarked w/ an 'r' or 'l' need to be checked w/ a space after the letter,
                 # otherwise ANY word w/ an 'r' or 'l' and has 'open' in it will be counted.
                 ('r ' in str(row[len(row) - 1]).lower() and 'hand' in str(row[len(row) - 1]).lower()) or
@@ -150,6 +152,9 @@ def get_event_rows(event_tab, sfreq):
         if (
                 ('left' in str(row[len(row) - 1]).lower() and 'hand' in str(row[len(row) - 1]).lower()) or
                 ('open' in str(row[len(row) - 1]).lower() and 'left' in str(row[len(row) - 1]).lower()) or
+
+                ('motor' in str(row[len(row) - 1]).lower() and 'left' in str(row[len(row) - 1]).lower()) or
+
                 ('l ' in str(row[len(row) - 1]).lower() and 'hand' in str(row[len(row) - 1]).lower()) or
                 ('oc l' in str(row[len(row) - 1]).lower() or 'o/c l' in str(row[len(row) - 1]).lower() or 'oc left' in str(row[len(row) - 1]).lower() or
                  'o/c left' in str(row[len(row) - 1]).lower() or 'oc_left' in str(row[len(row) - 1]).lower() or
