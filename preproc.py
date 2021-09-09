@@ -14,7 +14,7 @@ import legacy_functions as old
 
 plt.interactive(True)
 mne.utils.set_log_level('ERROR')
-CLI = argparse.ArgumentParser()
+CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 """Extract events for start/stop trying moving your R/L hand, save and raw.fif for experiment patient data"""
 
@@ -455,7 +455,8 @@ def main(wd, args):
 CLI.add_argument(
     "--filetype",
     type=str,
-    default='edf'
+    default='edf',
+    help='specify if preprocessing edf or fif files'
 )
 
 CLI.add_argument(
@@ -463,7 +464,8 @@ CLI.add_argument(
     type=str2bool,
     nargs='?',
     const=True,
-    default=False
+    default=False,
+    help='choose not to skip over already-processed files'
 )
 
 CLI.add_argument(
@@ -471,7 +473,8 @@ CLI.add_argument(
     type=str2bool,
     nargs='?',
     const=True,
-    default=False
+    default=False,
+    help='force the old eeg trigger processing method'
 )
 
 

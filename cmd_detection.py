@@ -13,7 +13,7 @@ import eeg_functions as eeg
 
 mne.utils.set_log_level('ERROR')
 warnings.filterwarnings('ignore')
-CLI = argparse.ArgumentParser()
+CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 def str2bool(v):
@@ -25,6 +25,7 @@ def str2bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def main(args):
     cwd = args.cwd
@@ -177,45 +178,54 @@ def main(args):
 CLI.add_argument(
     "--cwd",
     type=str,
-    default='.'
+    default='.',
+    help='the working directory to run this script from'
 )
 
 CLI.add_argument(
     "--write_dir",
     type=str,
-    default='./model_outfiles/'
+    default='./model_outfiles/',
+    help='directory to save the model output to. directory will be created if it does not exist'
 )
 
 CLI.add_argument(
     "--events_dir",
     type=str,
-    default='./event_files/'
+    default='./event_files/',
+    help='directory containing the event files corresponding to each fif file'
 )
 
 CLI.add_argument(
     "--num_job",
     type=str,
-    default='0'
+    default='0',
+    help='the current job number. this is automatically set when running this script via the cluster'
 )
 
 CLI.add_argument(
     "--rawfiles",
     nargs="*",
     type=str,
-    default=None
+    default=None,
+    help='the list of fif files to analyze. this is usually set using set_files.sh, '
+         'but file paths can be also passed manually here'
 )
 
 CLI.add_argument(
     "--combined_output_fl",
     type=str,
-    default='psd_out_all.csv'
+    default='psd_out_all.csv',
+    help='file that contains all the previous model output. '
+         'recordings in this file that were previously analyzed will be skipped'
 )
 
 # this argument is mainly to reduce number of permutations when testing
 CLI.add_argument(
     "--nperm",
     type=int,
-    default=500
+    default=500,
+    help='the number of permutations to run when checking the model AUC significance'
 )
 
 CLI.add_argument(
@@ -223,7 +233,9 @@ CLI.add_argument(
     type=str2bool,
     nargs='?',
     const=True,
-    default=False
+    default=False,
+    help='specify if analyzing a control file or not. mainly due to controls only containing one hand. '
+         'normally, a file is skipped if it does not contain both hands'
 )
 
 

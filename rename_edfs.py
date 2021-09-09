@@ -7,7 +7,7 @@ import argparse
 
 
 mne.utils.set_log_level('ERROR')
-CLI = argparse.ArgumentParser()
+CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 def str2bool(v):
@@ -37,7 +37,7 @@ def main(args):
     failed_rename = args.failed_rename
     save_noname = args.save_noname
 
-    ptclass = pd.read_excel(flname, sheet_name=sheet_idx)
+    ptclass = pd.read_excel(flname, sheet_name=sheet_idx, engine='openpyxl')
     # holy shit, the column names change ever so slightly whenever a new file is used.
     # try to find the relevant columns instead
     # I'm taking a gamble by taking the first match if there's more than one.
@@ -150,25 +150,29 @@ def main(args):
 CLI.add_argument(
     "--cwd",
     type=str,
-    default='.'
+    default='.',
+    help='the working directory to run this script from'
 )
 
 CLI.add_argument(
     "--file",
     type=str,
-    default='/Volumes/groups/NICU/Clinical Research Coordinators/Studies & Screening/General Screening Log.xlsx'
+    default='/Volumes/groups/NICU/Clinical Research Coordinators/Studies & Screening/General Screening Log.xlsx',
+    help='excel file that contains the name and MRN pairs'
 )
 
 CLI.add_argument(
     "--sheet",
     type=int,
-    default=1
+    default=1,
+    help='the sheet in the excel file to use'
 )
 
 CLI.add_argument(
     "--ptype",
     type=str,
-    default="patient"
+    default="patient",
+    help='whether analyzing a patient file or a control file'
 )
 
 CLI.add_argument(
@@ -176,7 +180,8 @@ CLI.add_argument(
     type=str2bool,
     nargs='?',
     const=True,
-    default=False
+    default=False,
+    help='if re-renaming files where something went wrong in the prior renaming process'
 )
 
 CLI.add_argument(
@@ -184,7 +189,8 @@ CLI.add_argument(
     type=str2bool,
     nargs='?',
     const=True,
-    default=False
+    default=False,
+    help='save a file without substituting the name for the MRN'
 )
 
 
