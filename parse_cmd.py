@@ -54,10 +54,17 @@ def read_file2(input_file, rm_mcsp_cs=True):
                                                      'fname', 'filename', 'just_filename', 'just_fname'])
 
     if rm_mcsp_cs:
-        model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
-        model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
+        # model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
+        # model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
+        # can use this new column created in calc_crsr_consc_state.R
+        model_data = model_data[~model_data['cs_group'].isin(['CS', 'MCSp'])]
+
+    # remove rows where cs_group is missing
+    model_data = model_data[~pd.isnull(model_data.cs_group)]
     # remove rows where model failed to run (AUC == NaN or == 0)
     bad_recs = model_data[pd.isnull(model_data.AUC) | model_data.AUC == 0]
+
+
     model_data.drop(bad_recs.index, inplace=True)
     # bad_rec_names = bad_recs.rec_name.tolist()
     bad_rec_names = bad_recs[fname_col].tolist()
@@ -72,10 +79,11 @@ def read_file2(input_file, rm_mcsp_cs=True):
         # model_data['mrn'] = model_data['rec_name'].str.split('/').apply(lambda x: x[2]).str.split('_').apply(
           #  lambda x: x[0]).astype('int')
     use = model_data[fname_col].str.split('/').apply(lambda x: x[len(x) - 1])
-    try:
-        model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '').astype('int')
-    except ValueError:
-        model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '')
+    if 'mrn' not in model_data.columns:
+        try:
+            model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '').astype('int')
+        except ValueError:
+            model_data['mrn'] = use.str.split('_').apply(lambda x: x[0]).str.replace('-', '')
     # FDR correct to obtain significant files
     model_data_grp = model_data.groupby('mrn')
     fdr_pvals = pd.DataFrame(model_data_grp.apply(lambda x: fdr(x.pvalue))).reset_index()

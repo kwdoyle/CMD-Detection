@@ -66,35 +66,55 @@ fillMissingGroup <- function(x) {
   }
 }
 
+
+renameMatchCols <- function(db, rn_list) {
+  col_idx_to_rn <- which(names(db) %in% unlist(rn_list))
+  if (length(col_idx_to_rn) == 0) {
+    print("No columns to rename")
+    return(db)
+  }
+
+  to_rename <- names(db)[col_idx_to_rn]
+  new_name_order_idx <- sapply(to_rename, function(x) which(unlist(rn_list) == x))
+  new_names <- names(rn_list)[new_name_order_idx]
+  names(db)[col_idx_to_rn] <- new_names
+
+  return(db)
+}
+
 # this is a better version of base::commandArgs which allows for default arguments to be specified
-args <- R.utils::commandArgs(defaults=list(model_output="/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv",
+args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",  # "/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv",
                                            rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
                                            rc_out_path="/Volumes/kd2630/Data/redcap outputs/consciousness/",
                                            save_path="."),
                              asValues=TRUE)
 
-modout.arg <- args$model_output
-rcids.arg <- args$rc_id
-rcdat.arg <- args$rc_out_path
+model_output <- args$model_output
+rc_id <- args$rc_id
+rc_out_path <- args$rc_out_path
 save_path <- args$save_path
 
-save_nm <- unlist(lapply(strsplit(modout.arg, '/'), tail, 1L))
+save_nm <- unlist(lapply(strsplit(model_output, '/'), tail, 1L))
 save_nm <- substr(save_nm, 1, nchar(save_nm)-4)
 save_nm <- paste0(save_nm, "_w_crsr_group.csv")
 
 # make these paths arguments too
-modout <- read.csv(modout.arg)
-rcids <- read_xlsx(rcids.arg)
+modout <- read.csv(model_output)
+rcids <- read_xlsx(rc_id)
 rcids$mrn <- as.numeric(as.character(rcids$mrn))
 
 # load redcap data
 consc <- new.env()
-sourceEnv(path=rcdat.arg, env=consc)
+sourceEnv(path=rc_out_path, env=consc)
 data <- consc$data
 data2 <- sjlabelled::remove_all_labels(processREDCapData(data))
 # add mrns first here
 data2 <- data2 %>%
   left_join(select(rcids, record_id, mrn), by = 'record_id')
+
+# repair identical column names
+identical_cols <- list(test_datetime=c('eeg_date', 'test_date'))  # any possible other names for test_datetime can go here
+data2 <- renameMatchCols(data2, identical_cols)
 
 # create just the file name and then mrn and test date from that
 modout$recname2 <- gsub('-raw.fif', '',
