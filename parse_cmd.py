@@ -58,9 +58,9 @@ def read_file2(input_file, rm_mcsp_cs=True):
         # model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
         # can use this new column created in calc_crsr_consc_state.R
         model_data = model_data[~model_data['cs_group'].isin(['CS', 'MCSp'])]
+        # remove rows where cs_group is missing
+        model_data = model_data[~pd.isnull(model_data.cs_group)]
 
-    # remove rows where cs_group is missing
-    model_data = model_data[~pd.isnull(model_data.cs_group)]
     # remove rows where model failed to run (AUC == NaN or == 0)
     bad_recs = model_data[pd.isnull(model_data.AUC) | model_data.AUC == 0]
 
