@@ -5,7 +5,7 @@ import parse_cmd as cmd
 import pandas as pd
 import argparse
 
-CLI = argparse.ArgumentParser()
+CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 
 def str2bool(v):
@@ -39,15 +39,17 @@ def main(args):
 CLI.add_argument(
     "--rawfl",
     type=str,
-    default='/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv'
+    default='/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv',
+    help='file to calculate cmd status for'
 )
 
 CLI.add_argument(
-        "--rm_mcsp_cs",
-        type=str2bool,
-        nargs='?',
-        const=True,
-        default=True
+    "--rm_mcsp_cs",
+    type=str2bool,
+    nargs='?',
+    const=True,
+    default=True,
+    help='remove the mcsp and cs recordings before cmd calculation'
     )
 
 if __name__ == '__main__':
