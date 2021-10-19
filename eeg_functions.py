@@ -2600,7 +2600,9 @@ def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=5
         l_start, l_stop, r_start, r_stop = use_ids
 
     # case for old files
-    elif np.all(np.unique(events[:, 2]) == np.arange(1, 5, 1)):
+    # elif np.all(np.unique(events[:, 2]) == np.arange(1, 5, 1)):
+    # at least for the old files, have this work even if it only has one hand or the other
+    elif np.all(np.in1d(np.unique(events[:, 2]), np.arange(1, 5, 1))):
         use_ids = [1, 2, 3, 4]
         l_start, l_stop, r_start, r_stop = use_ids
 
