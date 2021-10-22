@@ -2253,7 +2253,7 @@ def insert_missing_chans(raw, missing, sfreq, ch_type='eeg'):
 
 def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
               n_epo_segments=1, ref_chans=None, hand_use=None,
-              rename_chans=False, chan_dict=None, insert_missing=False,
+              rename_chans=False, chan_dict=None, rename_chan_type=None, insert_missing=False,
               event_fl=None, is_control=False):
     """Parameters
     raw_fname : str
@@ -2290,6 +2290,11 @@ def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
         if not chan_dict:
             sys.exit("Need to specify a channel dictionary if renaming channels")
         mne.rename_channels(raw.info, chan_dict)
+        # now change channel type
+        for i in range(len(raw.info['chs'])):
+            if raw.info['chs'][i]['ch_name'] in chan_dict.values():
+                raw.info['chs'][i]['kind'] = mne.channels.channels._human2fiff[rename_chan_type]
+
 
     # ??? why was pick_types being used instead of the simpler pick_channels???
     # I don't **think** this will break anything by switching
@@ -2532,7 +2537,7 @@ def read_data(data, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
 # events FROM the fedebox.
 def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=50.,
                       n_epo_segments=1, ref_chans=None, hand_use=None,
-                      rename_chans=False, chan_dict=None, insert_missing=False, is_control=False):
+                      rename_chans=False, chan_dict=None, rename_chan_type=None, insert_missing=False, is_control=False):
     """Parameters
     raw_fname : str
         file path of the raw.
@@ -2568,6 +2573,10 @@ def read_data_fedebox(data, event_fl, use_ch, tmin=0., tmax=10., fmin=.5, fmax=5
         if not chan_dict:
             sys.exit("Need to specify a channel dictionary if renaming channels")
         mne.rename_channels(raw.info, chan_dict)
+        # now change channel type
+        for i in range(len(raw.info['chs'])):
+            if raw.info['chs'][i]['ch_name'] in chan_dict.values():
+                raw.info['chs'][i]['kind'] = mne.channels.channels._human2fiff[rename_chan_type]
 
     picks = mne.pick_types(raw.info, eeg=False, stim=False, eog=False,
                            ecg=False, misc=False, include=use_ch)
