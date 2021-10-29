@@ -1,3 +1,4 @@
+#!/usr/bin/env Rscript
 library(tidyverse)
 library(kevtools)
 library(readxl)
@@ -13,6 +14,51 @@ sourceEnv <- function(path, env) {
 
   print(paste("sourcing file", fl))
   sys.source(fl, chdir=T, envir=env)
+}
+
+
+loadRedcap <- function(path, rcids) {
+  if (class(path) != "character" & class(rcids) != "list") {
+    stop("Must provide vector of paths to redcap data folders and a list of their recdap ID files in order")
+  }
+
+  out <- list()
+  for (i in 1:length(path)) {
+    env <- new.env()
+    sourceEnv(path=path[i], env=env)
+    data <- env$data
+    data2 <- sjlabelled::remove_all_labels(kevtools::processREDCapData(data))
+    # add mrns first here
+    data2 <- data2 %>%
+      left_join(select(rcids[[i]], record_id, mrn), by = 'record_id')
+    out[[i]] <- data2
+  }
+
+  return(out)
+}
+
+
+cleanDate <- function(x, badstr) {
+  ifelse(x == badstr, NA, x)
+}
+
+
+createTimeCol <- function(x) {
+  if (any(names(x) == "eeg_date")) {
+    # create test_datetime for reconfig
+    rcfgtimes <- x$eeg_time
+    # rcfgtdatetimes <- cleanDate(paste(rcfg.data2$eeg_date, rcfg.data2$eeg_time, sep=" "),
+    #                             badstr="NA NA")
+    rcfgtdatetimes <- paste(x$eeg_date, x$eeg_time, sep=" ")
+    # just turn the NAs to 00:00s
+    rcfgtdatetimes2 <- gsub("NA", "00:00", rcfgtdatetimes)
+    # this is from turning the double blank "NA" strings pasted together that both were converted to 00:00s
+    rcfgdatetimes3 <- as.POSIXct(cleanDate(rcfgtdatetimes2, badstr="00:00 00:00"))
+    x$test_datetime <- rcfgdatetimes3
+  } else if (any(names(x) == "test_datetime")) {
+    x$test_datetime <- as.POSIXct(x$test_datetime)
+  }
+  return(x)
 }
 
 
@@ -83,7 +129,7 @@ renameMatchCols <- function(db, rn_list) {
 }
 
 # this is a better version of base::commandArgs which allows for default arguments to be specified
-args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",  # "/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv",
+args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",
                                            rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
                                            rc_out_path="/Volumes/kd2630/Data/redcap outputs/consciousness/",
                                            save_path="."),
@@ -94,31 +140,46 @@ rc_id <- args$rc_id
 rc_out_path <- args$rc_out_path
 save_path <- args$save_path
 
+# if passed multiple paths, split them via the comma and create a vector
+rc_id <- strsplit(rc_id, ",")[[1]]
+rc_out_path <- strsplit(rc_out_path, ",")[[1]]
+
 save_nm <- unlist(lapply(strsplit(model_output, '/'), tail, 1L))
 save_nm <- substr(save_nm, 1, nchar(save_nm)-4)
 save_nm <- paste0(save_nm, "_w_crsr_group.csv")
 
 # make these paths arguments too
 modout <- read.csv(model_output)
-rcids <- read_xlsx(rc_id)
-rcids$mrn <- as.numeric(as.character(rcids$mrn))
 
-# load redcap data
-consc <- new.env()
-sourceEnv(path=rc_out_path, env=consc)
-data <- consc$data
-data2 <- sjlabelled::remove_all_labels(processREDCapData(data))
-# add mrns first here
-data2 <- data2 %>%
-  left_join(select(rcids, record_id, mrn), by = 'record_id')
+rcid_lst <- list()
+for (i in 1:length(rc_id)) {
+  rcidtmp <- read_xlsx(rc_id[i])
+  rcidtmp$mrn <- as.numeric(as.character(rcidtmp$mrn))
+  rcid_lst[[i]] <- rcidtmp
+}
 
-# repair identical column names
-identical_cols <- list(test_datetime=c('eeg_date', 'test_date'))  # any possible other names for test_datetime can go here
-data2 <- renameMatchCols(data2, identical_cols)
+
+dataouts <- loadRedcap(path=rc_out_path, rcids=rcid_lst)
+
+# if any of the tables have this column, then perform this to fix and convert to 'test_datetime'
+chk1 <- sapply(dataouts, function(x) any(names(x) == "test_datetime"))
+chk2 <- sapply(dataouts, function(x) any(names(x) == "eeg_date"))
+
+if (any(chk1) & any(chk2)) {
+  dataouts <- lapply(dataouts, createTimeCol)
+}
+
+# O.K. this just converst the test date back to character.
+data2 <- gtools::smartbind(list=dataouts)
+
+
+# ...the rec name column isn't always named the same.
+# do a search for similar names.
+recname_col_idx <- grep("rec_name|recname|fname|f_name", names(modout))
 
 # create just the file name and then mrn and test date from that
 modout$recname2 <- gsub('-raw.fif', '',
-                             unlist(lapply(strsplit(modout$rec_name, '/'), tail, 1L)))
+                             unlist(lapply(strsplit(modout[,recname_col_idx], '/'), tail, 1L)))
 # perform surgery to get mrn and date by splitting by _, taking the first two (mrn and date), then pasting them all back together
 tmpname1 <- strsplit(modout$recname2, '_')
 tmpname2 <- lapply(tmpname1, head, 2)
@@ -154,40 +215,9 @@ cs_groups <- CalcCSstate(crsrs) %>%
   ungroup()
 
 cs_groups_join <- cs_groups %>%
-  select(mrn, test_date, cs_group) %>%  # recname_join
+  select(mrn, test_date, cs_group) %>%
   distinct()
 
-# # join the recordings TO the crsr data and then do a fill for closest one if it's like a day before or after I GUESS
-# alldates_crsr <- cs_groups_join %>%
-#   select(mrn, test_date)
-#
-# alldates_aud <- modout %>%
-#   select(mrn, test_date) %>%
-#   distinct()
-#
-# alldates <- unique(rbind(alldates_crsr, alldates_aud))
-#
-# alldates_cs_group <- alldates %>%
-#   left_join(cs_groups_join, by=c('mrn', 'test_date'))
-#
-#
-# tst2 <- tst %>%
-#   group_by(mrn) %>%
-#   mutate(cs_group = case_when(is.na(cs_group) &
-#                               #lag(test_date) + lubridate::days(1)
-#                               data.table::between(lag(test_date), lower=test_date-days(200), upper=test_date+days(200)) ~ lag(cs_group),
-#   TRUE ~ cs_group))
-
-
-
-
-# alldates_cs_group_filled <- fillMissingGroup(alldates_cs_group)
-#
-#
-# recording_crsrs_closest <- cs_groups_join %>%
-#   left_join(modout, by='recname_join') %>%
-#   select(mrn, recname_join) %>%
-#   distinct()
 
 
 # add cs group to the model output and re-save it
@@ -196,7 +226,7 @@ modout_cs_group <- modout %>%
   # arrange(mrn, test_date) %>%
   select(-recname2) %>%
   distinct() %>%
-  group_by(rec_name) %>%
+  group_by(across(all_of(names(modout)[recname_col_idx]))) %>%
   mutate(cs_group = cs_group[as.numeric(cs_group) == min(as.numeric(cs_group), na.rm=T)]) %>%
   distinct()
 modout_cs_group$mrn <- as.character(modout_cs_group$mrn)
