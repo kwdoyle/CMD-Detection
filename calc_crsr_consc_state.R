@@ -3,6 +3,7 @@ library(tidyverse)
 library(kevtools)
 library(readxl)
 library(lubridate)
+library(stringr)
 
 
 sourceEnv <- function(path, env) {
@@ -154,10 +155,18 @@ modout <- read.csv(model_output)
 rcid_lst <- list()
 for (i in 1:length(rc_id)) {
   rcidtmp <- read_xlsx(rc_id[i])
+  # the mrn column can have spaces before or after the mrn itself.
+  # converting straight to numeric will generate NAs.
+  # need to remove the whitespace, and only this function seems to work for some reason.
+  rcidtmp$mrn <- str_trim(rcidtmp$mrn, side="both")
   rcidtmp$mrn <- as.numeric(as.character(rcidtmp$mrn))
   rcid_lst[[i]] <- rcidtmp
 }
 
+
+if (length(rc_out_path) != length(rcid_lst)) {
+  stop("Must supply a redcap id file for each database to load, and vice-versa. Even if it's the same redcap id file twice.")
+}
 
 dataouts <- loadRedcap(path=rc_out_path, rcids=rcid_lst)
 
