@@ -165,7 +165,7 @@ dataouts <- loadRedcap(path=rc_out_path, rcids=rcid_lst)
 chk1 <- sapply(dataouts, function(x) any(names(x) == "test_datetime"))
 chk2 <- sapply(dataouts, function(x) any(names(x) == "eeg_date"))
 
-if (any(chk1) & any(chk2)) {
+if (any(chk1) | any(chk2)) {
   dataouts <- lapply(dataouts, createTimeCol)
 }
 
