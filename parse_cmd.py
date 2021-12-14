@@ -38,7 +38,7 @@ def find_signif_files2(x, orig_dat):
     return new_df
 
 
-def read_file2(input_file, rm_mcsp_cs=True):
+def read_file2(input_file, rm_names, rm_mcsp_cs=True):
     model_data = pd.read_csv(input_file)
     # wow, wtf, I didn't remove CS and MCSp recordings in this?????
     # not explicitly necessary with newer analyzed files as I don't put them in separate folders
@@ -53,6 +53,11 @@ def read_file2(input_file, rm_mcsp_cs=True):
     fname_col = find_column(df=model_data, namecols=['rec_name', 'recname', 'rec.name', 'rec name',
                                                      'fname', 'filename', 'just_filename', 'just_fname'])
 
+    # create column for just the recording names
+    justfnames = model_data[fname_col].str.split('/').tolist()
+    justfnames = [x[len(x) - 1] for x in justfnames]
+    model_data['rec_name2'] = justfnames
+
     if rm_mcsp_cs:
         # model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
         # model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
@@ -64,10 +69,14 @@ def read_file2(input_file, rm_mcsp_cs=True):
     # remove rows where model failed to run (AUC == NaN or == 0)
     bad_recs = model_data[pd.isnull(model_data.AUC) | model_data.AUC == 0]
 
-
     model_data.drop(bad_recs.index, inplace=True)
     # bad_rec_names = bad_recs.rec_name.tolist()
     bad_rec_names = bad_recs[fname_col].tolist()
+
+    # Now remove people in the list of people to remove for various reasons
+    isin_vec = model_data.rec_name2.isin(rm_names.to_list())
+    bad_juans = isin_vec[isin_vec == True]
+    model_data.drop(bad_juans.index, inplace=True)
 
     model_data['pvalue'] = pd.to_numeric(model_data['pvalue'])
     # extract MRNs
