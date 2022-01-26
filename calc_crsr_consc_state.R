@@ -130,6 +130,9 @@ renameMatchCols <- function(db, rn_list) {
 }
 
 # this is a better version of base::commandArgs which allows for default arguments to be specified
+# NOTE: so I guess this works now even for people who aren't in the rc_id file
+# (eg, the deidentified people from miami),
+# but still have data in redcap with the record id used as the mrn in this case.
 args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",
                                            rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
                                            rc_out_path="/Volumes/kd2630/Data/redcap outputs/consciousness/",
@@ -196,7 +199,25 @@ tmpname3 <- unlist(lapply(tmpname2, paste, collapse='_'))
 modout$recname2 <- tmpname3
 modout$test_date <- as.Date(unlist(lapply(strsplit(modout$recname2, '_'), tail, 1L)))
 if (!'mrn' %in% names(modout)) {
- modout$mrn <- as.numeric(unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1)))
+  # TODO WARNING: I HAVE NO IDEA HOW THIS WILL AFFECT THE NORMAL PROCESSING
+ # modout$mrn <- as.numeric(unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1)))
+  mrnstoadd <- as.numeric(unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1)))
+  # this is in case the mrns aren't really mrns and are de-identified ids
+  if (all(is.na(mrnstoadd))) {
+    # this is a hack-y way to avoid using a useless rcid file
+    dont_use_rcid_lst <- TRUE
+    mrnstoadd <- unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1))
+  } else {
+    dont_use_rcid_lst <- FALSE
+  }
+  
+  modout$mrn <- mrnstoadd
+}
+
+# ...this is really where the "no mrn for deidentified people" is a problem
+# if I don't filter for non-na mrns here though, it might be ok. 
+if (dont_use_rcid_lst) {
+  data2$mrn <- ifelse(is.na(data2$mrn), data2$record_id, data2$mrn)
 }
 
 crsrs <- data2 %>%
