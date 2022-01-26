@@ -58,7 +58,7 @@ CLI.add_argument(
 CLI.add_argument(
     "--rm_file",
     type=str,
-    default='/Volumes/groups/NICU/Long-Term Recovery Project/Long-Term Recovery New Cohort Master List_12.14.2021.xlsx',
+    default='/Volumes/groups/NICU/Long-Term Recovery Project/Long-Term Recovery New Cohort Master List_12.17.2021.xlsx',
     help='list of recordings to remove'
 )
 
