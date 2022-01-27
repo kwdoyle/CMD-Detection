@@ -23,17 +23,21 @@ def main(args):
     model_output_file = args.rawfl
     rm_mcsp_cs = args.rm_mcsp_cs
     rm_file = args.rm_file
-    # NOTE: the sheet index might change in the future. Who knows.
-    remove_file = pd.read_excel(rm_file, sheet_name=1, engine='openpyxl')
-    # clean
-    remove_file = remove_file[['MRN', 'aud_datetime']]
-    remove_file = remove_file.dropna(subset=['MRN'])
-    remove_file['MRN'] = remove_file['MRN'].astype(int)
-    datetime_nm = remove_file.aud_datetime.astype(str)
-    datetime_nm = datetime_nm.replace(' ', '_', regex=True)
-    datetime_nm = datetime_nm.replace(':', '-', regex=True)
-    newflnm = remove_file.MRN.astype(str) + '_' + datetime_nm
-    newflnm = newflnm + '-raw.fif'
+    remove_recs = args.remove_recs
+    if remove_recs:
+        # NOTE: the sheet index might change in the future. Who knows.
+        remove_file = pd.read_excel(rm_file, sheet_name=1, engine='openpyxl')
+        # clean
+        remove_file = remove_file[['MRN', 'aud_datetime']]
+        remove_file = remove_file.dropna(subset=['MRN'])
+        remove_file['MRN'] = remove_file['MRN'].astype(int)
+        datetime_nm = remove_file.aud_datetime.astype(str)
+        datetime_nm = datetime_nm.replace(' ', '_', regex=True)
+        datetime_nm = datetime_nm.replace(':', '-', regex=True)
+        newflnm = remove_file.MRN.astype(str) + '_' + datetime_nm
+        newflnm = newflnm + '-raw.fif'
+    else:
+        newflnm = None
 
     newout, badrecs = cmd.read_file2(input_file=model_output_file, rm_names=newflnm, rm_mcsp_cs=rm_mcsp_cs)
     # find cmd status per patient
@@ -53,6 +57,15 @@ CLI.add_argument(
     type=str,
     default='/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv',
     help='file to calculate cmd status for'
+)
+
+CLI.add_argument(
+    "--remove_recs",
+    type=str2bool,
+    nargs='?',
+    const=True,
+    default=True,
+    help='set to True to remove files listed in the rm_file specified'
 )
 
 CLI.add_argument(

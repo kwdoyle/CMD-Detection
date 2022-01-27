@@ -73,10 +73,11 @@ def read_file2(input_file, rm_names, rm_mcsp_cs=True):
     # bad_rec_names = bad_recs.rec_name.tolist()
     bad_rec_names = bad_recs[fname_col].tolist()
 
-    # Now remove people in the list of people to remove for various reasons
-    isin_vec = model_data.rec_name2.isin(rm_names.to_list())
-    bad_juans = isin_vec[isin_vec == True]
-    model_data.drop(bad_juans.index, inplace=True)
+    if rm_names is not None:
+        # Now remove people in the list of people to remove for various reasons
+        isin_vec = model_data.rec_name2.isin(rm_names.to_list())
+        bad_juans = isin_vec[isin_vec == True]
+        model_data.drop(bad_juans.index, inplace=True)
 
     model_data['pvalue'] = pd.to_numeric(model_data['pvalue'])
     # extract MRNs
