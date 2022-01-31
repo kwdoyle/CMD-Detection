@@ -29,6 +29,15 @@ loadRedcap <- function(path, rcids) {
     sourceEnv(path=path[i], env=env)
     data <- env$data
     data2 <- sjlabelled::remove_all_labels(kevtools::processREDCapData(data))
+    # TODO I guess check for the "A-"s from the aphasia id list, since they're NOT
+    # in the actual id.
+    if (any(grepl("A-", rcids[[i]]$record_id))) {
+      rcids[[i]]$record_id <- gsub("A-", "", rcids[[i]]$record_id)
+    }
+    # also this
+    if (class(rcids[[i]]$record_id) == "character") {
+      data2$record_id <- as.character(data2$record_id)
+    }
     # add mrns first here
     data2 <- data2 %>%
       left_join(select(rcids[[i]], record_id, mrn), by = 'record_id')
@@ -57,6 +66,9 @@ createTimeCol <- function(x) {
     rcfgdatetimes3 <- as.POSIXct(cleanDate(rcfgtdatetimes2, badstr="00:00 00:00"))
     x$test_datetime <- rcfgdatetimes3
   } else if (any(names(x) == "test_datetime")) {
+    x$test_datetime <- as.POSIXct(x$test_datetime)
+  } else if (any(names(x) == "eeg_datetime")) {
+    names(x)[which(names(x) == "eeg_datetime")] <- "test_datetime"
     x$test_datetime <- as.POSIXct(x$test_datetime)
   }
   return(x)
@@ -176,8 +188,10 @@ dataouts <- loadRedcap(path=rc_out_path, rcids=rcid_lst)
 # if any of the tables have this column, then perform this to fix and convert to 'test_datetime'
 chk1 <- sapply(dataouts, function(x) any(names(x) == "test_datetime"))
 chk2 <- sapply(dataouts, function(x) any(names(x) == "eeg_date"))
+# also need to check for THIS
+chk3 <- sapply(dataouts, function(x) any(names(x) == "eeg_datetime"))
 
-if (any(chk1) | any(chk2)) {
+if (any(chk1) | any(chk2) | any(chk3)) {
   dataouts <- lapply(dataouts, createTimeCol)
 }
 
