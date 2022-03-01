@@ -52,7 +52,7 @@ def check_dc_chans(raw):
     plot_trigs(chan[3, :], y='DC8')
 
 
-def process_triggers(raw, trig_thresh=2, trig_chans=None):
+def process_triggers(raw, chan_dict, trig_thresh=2):
     _mcp_trig_map = {
         0xD8: 'inst_start/left',  # 216
         0xD0: 'start/left',  # 208
@@ -84,12 +84,19 @@ def process_triggers(raw, trig_thresh=2, trig_chans=None):
         'DC8': 0x80
     }
 
-    if trig_chans is None:
-        trig_chans = ['DC5', 'DC6', 'DC7', 'DC8']
+    # instead of forcing this to use DC5 through DC8 for each hex value,
+    # just set each value in order of channels passed.
+    # ...or set each channel individually? maybe.
+    # pass a dict of the channels that map to what DC5 through DC8 should be?
+    # this'll set them for each "main name" (i.e., DC5, DC6, DC7, DC8)
+    trig_mult = np.array([_trig_hex[x] for x in list(chan_dict.keys())])
+    # then choose which channels actually correspond to them.
+    # I guess this should work fine, since the order of the keys and values match..
 
-    trig_mult = np.array([_trig_hex[chan] for chan in trig_chans])
-
-    trig_idx = mne.pick_channels(raw.ch_names, trig_chans)
+    # WOW, you need this ordered=True so that it DOESN'T order the indices obtained in accending order.
+    # Normally this was fine, since the channels passed were in increasing order anyway.
+    # but NOW if, for example, DC6 is DC1, it will put the index for DC1 first, messing up the index order of the data below.
+    trig_idx = mne.pick_channels(raw.ch_names, list(chan_dict.values()), ordered=True)
 
     trig_data = (np.abs(
         raw._data[trig_idx, :]) > trig_thresh).astype(np.int)
@@ -332,8 +339,8 @@ def clean_it(events):
     return events3
 
 
-def process_file(raw, trig_thresh, trig_chans):
-    raw = process_triggers(raw=raw, trig_thresh=trig_thresh, trig_chans=trig_chans)
+def process_file(raw, trig_thresh, chan_dict):
+    raw = process_triggers(raw=raw, trig_thresh=trig_thresh, chan_dict=chan_dict)
     events = mne.find_events(raw, consecutive=True)
     # now clean them
     # do cleaning in single function
@@ -373,6 +380,7 @@ def main(wd, args):
                u'CHEST', u'ABD', u'FLOW', u'SNORE', u'DIF5', u'DIF6', u'POS', u'DC2', u'DC3', u'DC4', u'DC5', u'DC6',
                u'DC7', u'DC8', u'DC9', u'DC10', u'OSAT', 'STI 014', u'Fpz', u'Event', u'LOC', u'ROC', u'LSTIM', u'RSTIM',
                u'F9', u'F10', u'T9', u'T10', u'P9', u'P10', u'A1', u'A2', ]
+    chan_dict = args.chan_dict
 
     # process files
     for fl in files:
@@ -398,18 +406,7 @@ def main(wd, args):
         # un-comment if want to check dc channel data
         # check_dc_chans(raw)
 
-        # new trigger processing function
-        # so modifying the trig thresh also helps
-        #  eg, in recording5 where one block didn't parse out correctly for the 4 different events.
-        #  Be careful though, because I think changing this could also mess things up for other
-        #  files
-
-        #  changing the trig threshold applies to all DC channels I guess.
-        #  I want a separate threshold just for DC7, so that way I can just ignore it if it's
-        #  completely unusable (eg, some blocks get split correctly but others don't no matter what thresh is used)
-        #  tl;dr: need a way to just ignore DC7 when processing the triggers.
-        #  TODO might also need to change the trig_thresh. Not sure if 0.5 will always be ok, but it seems to be so far.
-        events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC7', 'DC8'])
+        events = process_file(raw=raw, trig_thresh=0.5, chan_dict=chan_dict)
 
         if events.size > 0 and not args.force_old_method:
             id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events)
@@ -417,7 +414,9 @@ def main(wd, args):
             # if id_check and not num_chk:
             if (id_check and any(list(num_count_chk.values()))) or any(list(count_thresh_chk.values())):
                 print('DC7 is unusable--re-running without it.')
-                events = process_file(raw=raw, trig_thresh=0.5, trig_chans=['DC5', 'DC6', 'DC8'])
+                # remove DC7 from chan_dict if it exists (the None value prevents it from erroring if there is no DC7 key for whatever reason)
+                chan_dict.pop('DC7', None)
+                events = process_file(raw=raw, trig_thresh=0.5, chan_dict=chan_dict)
 
             # ensure all event IDs are present with equal number of events
             count = Counter(events[:, 2])
@@ -457,6 +456,13 @@ CLI.add_argument(
     type=str,
     default='edf',
     help='specify if preprocessing edf or fif files'
+)
+
+CLI.add_argument(
+    '--chan_dict',
+    type=lambda e: {k:v for k,v in (x.split(':') for x in e.split(','))},
+    default={'DC5': 'DC5', 'DC6': 'DC6', 'DC7': 'DC7', 'DC8': 'DC8'},
+    help='comma-separated field:position pairs, e.g. Date:0,Amount:2,Payee:5,Memo:9'
 )
 
 CLI.add_argument(
