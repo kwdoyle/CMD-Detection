@@ -55,7 +55,7 @@ def main(args):
 CLI.add_argument(
     "--rawfl",
     type=str,
-    default='/Volumes/NeurocriticalCare/EEGData/Auditory/cmd_outfiles/psd_out_all.csv',
+    default='./psd_out_all_w_crsr_group.csv',
     help='file to calculate cmd status for'
 )
 

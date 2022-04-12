@@ -147,7 +147,7 @@ renameMatchCols <- function(db, rn_list) {
 # but still have data in redcap with the record id used as the mrn in this case.
 args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",
                                            rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
-                                           rc_out_path="/Volumes/kd2630/Data/redcap outputs/consciousness/",
+                                           rc_out_path="/Volumes/NeurocriticalCare/kevin/redcap outputs/consciousness/",
                                            save_path="."),
                              asValues=TRUE)
 
