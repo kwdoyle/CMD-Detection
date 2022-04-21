@@ -134,13 +134,13 @@ def main(args):
             epochs = eeg.fix_epochs(epochs, good_len=n_epo_segments * 2)
 
         # save event plots after cleaning them again before processing
-        eventplt = mne.viz.plot_events(epochs.events, show=False)
-        plt_name = os.path.basename(dat).split('/')[len(os.path.basename(dat).split('/')) - 1]
-
-        if not os.path.exists('./event_plots_for_pipeline/'):
-            os.makedirs('./event_plots_for_pipeline/')
-        eventplt.savefig('./event_plots_for_pipeline/' + plt_name[:-8] + '.png')
-        eventplt.clf()
+#        eventplt = mne.viz.plot_events(epochs.events, show=False)
+#        plt_name = os.path.basename(dat).split('/')[len(os.path.basename(dat).split('/')) - 1]
+#
+#        if not os.path.exists('./event_plots_for_pipeline/'):
+#            os.makedirs('./event_plots_for_pipeline/')
+#        eventplt.savefig('./event_plots_for_pipeline/' + plt_name[:-8] + '.png')
+#        eventplt.clf()
 
         print('Running pipeline with ' + str(nperm) + ' permutations')
         try:
