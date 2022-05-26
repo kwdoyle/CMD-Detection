@@ -353,7 +353,8 @@ def process_file(raw, trig_thresh, chan_dict):
     return events
 
 
-def main(wd, args):
+def main(args):  #main(wd, args):
+    wd = args.cwd
     # make directories first
     if not os.path.exists(wd + '/event_plots/'):
         os.makedirs(wd + '/event_plots')
@@ -483,8 +484,16 @@ CLI.add_argument(
     help='force the old eeg trigger processing method'
 )
 
+CLI.add_argument(
+    "--cwd",
+    type=str,
+    default='.',
+    help='the working directory to run this script from'
+)
+
 
 if __name__ == '__main__':
-    wd = os.getcwd()
+#    wd = os.getcwd()
     args = CLI.parse_args()
-    main(wd=wd, args=args)
+    #main(wd=wd, args=args)
+    main(args=args)

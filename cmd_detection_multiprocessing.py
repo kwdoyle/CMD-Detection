@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import argparse
+from copy import deepcopy
 import multiprocessing as mp
 from cmd_detection import main as runcmd
 
@@ -19,20 +20,40 @@ def str2bool(v):
         raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
+# TODO when the jobs are run, only a single (or two) files are actually run
+# for however many number of total tiles there are
+# (eg, for 10 files, it has run only 1 of those files 10 times)
+# is it because the args variable gets appended but then it overwritten each time?
+# does the appended args change too?
+# TODO make an array of args and use each one individually?
 def main(args, pool):
     flsuse = []
     allfiles = args.rawfiles
-    #print(allfiles)
+#    print("all files passed are:")
+#    print(allfiles)
     jobs = []
+#    args_all = []
     for i in range(len(allfiles)):
         flsuse.append(allfiles[i])
+#        print("file list to use is:")
+#        print(flsuse)
         if len(flsuse) == args.n_per_job:
+            argsuse = deepcopy(args) 
             # ..I guess it's ok to overwrite the main args.rawfiles. it's a little janky but whatevever
-            args.rawfiles = flsuse 
+            #args.rawfiles = flsuse 
+            argsuse.rawfiles = flsuse 
+#            print("files set to analyze are:")
+            #print(args.rawfiles)
+#            print(argsuse.rawfiles)
+#            args_all.append(argsuse)
+            # ..can I just use the deepcopied args?
+#            print(argsuse)
             # actually needs to be something like this:
-            jobs.append(pool.apply_async(runcmd, args=(args, )))  # ..is this how you pass arguments to the function that pool will use?
+            # jobs.append(pool.apply_async(runcmd, args=(args, )))  # ..is this how you pass arguments to the function that pool will use?
+            jobs.append(pool.apply_async(runcmd, args=(argsuse, )))  # ..is this how you pass arguments to the function that pool will use?
             #pool.apply_async(runcmd, args=(args, )).get()  # not sure if I actually need to use 'get()' to 'run' the jobs?
             # then reset flsuse
+#            print("Now start loop again")
             flsuse = []
 
     # actually do need to save all jobs in a list and "submit" them all like this for them to run all together
