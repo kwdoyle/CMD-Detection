@@ -2,16 +2,36 @@
 
 import os
 import re
+import argparse
 import pandas as pd
 from glob import glob
 
+
+CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+CLI.add_argument(
+    "--cwd",
+    type=str,
+    default='./',
+    help='the working directory to run this script from'
+)
+CLI.add_argument(
+    "--flsdir",
+    type=str,
+    default='./',
+    help='the directory where the model outfiles to concat are'
+)
+
+args = CLI.parse_args()
+wd = args.cwd
+flsdir = args.flsdir
+
 # use overly-complicated way to regex the model outputs
 files = []
-for fname in os.listdir('.'):
+for fname in os.listdir(flsdir):
     if re.match(r'psd_out\d+.csv', fname):
         files.append(fname)
 
-mainfile_srch = glob('./psd_out_all.csv')
+mainfile_srch = glob(wd + '/psd_out_all.csv')
 if len(mainfile_srch) == 1:
     mainfile = pd.read_csv(mainfile_srch[0])
 else:
@@ -31,6 +51,6 @@ newfile = mainfile.append(dfs)
 test_index = pd.Index(['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
 
 if newfile.columns.identical(test_index) and len(newfile) > len(mainfile):
-    newfile.to_csv('./psd_out_all.csv', index=False)
+    newfile.to_csv(wd + '/psd_out_all.csv', index=False)
 else:
     print("Data to save has messed up columns or is no different than existing data. Data will not be overwritten.")
