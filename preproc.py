@@ -406,8 +406,12 @@ def main(args):  #main(wd, args):
 
         # un-comment if want to check dc channel data
         # check_dc_chans(raw)
-
-        events = process_file(raw=raw, trig_thresh=0.5, chan_dict=chan_dict)
+        try:
+            events = process_file(raw=raw, trig_thresh=0.5, chan_dict=chan_dict)
+        except ValueError as e:
+            print(e)
+            print("Skipping...")
+            continue
 
         if events.size > 0 and not args.force_old_method:
             id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events)
@@ -493,7 +497,5 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-#    wd = os.getcwd()
     args = CLI.parse_args()
-    #main(wd=wd, args=args)
     main(args=args)
