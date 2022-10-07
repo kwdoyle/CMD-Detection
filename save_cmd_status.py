@@ -25,7 +25,7 @@ def main(args):
     rm_file = args.rm_file
     remove_recs = args.remove_recs
     if remove_recs:
-        # NOTE: the sheet index might change in the future. Who knows.
+        # NOTE: the sheet index might change in the future.
         remove_file = pd.read_excel(rm_file, sheet_name=1, engine='openpyxl')
         # clean
         remove_file = remove_file[['MRN', 'aud_datetime']]
@@ -48,7 +48,6 @@ def main(args):
 
     savenm = model_output_file.split('/')[len(model_output_file.split('/')) - 1]
     savenm2 = savenm.split('.csv')[0] + '_w_cmd'
-    # newout.to_csv('./psd_out_all_w_cmd.csv', index=False)
     newout.to_csv('./' + savenm2 + '.csv', index=False)
 
 

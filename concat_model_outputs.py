@@ -25,7 +25,7 @@ args = CLI.parse_args()
 wd = args.cwd
 flsdir = args.flsdir
 
-# use overly-complicated way to regex the model outputs
+# regex the model outputs
 files = []
 for fname in os.listdir(flsdir):
     if re.match(r'psd_out\d+.csv', fname):

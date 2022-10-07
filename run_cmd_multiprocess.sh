@@ -6,18 +6,15 @@
 FIFS=$1
 EVENTS_DIR=$2
 FIFS+="*.fif"  # this works somehow. it just auto-fills in all fif files using the wildcard.
-NB_FILE_PER_JOB='20' # 5  # number should normally be 5. I GUESS you could do 1 file per job/core though
-# NOTE: I cannot figure out how to use an int that ends with 0 without bash removing that 0 when passing to the script below.
-# I cheat by passing it as a string, then converting to int within the script.
+NB_FILE_PER_JOB='20' # 5  # number should normally be 5.
+# cannot figure out how to use an int that ends with 0 without bash removing that 0 when passing to the script below.
+# get around this by passing it as a string, then converting to int within the script.
 SAVEPATH='./model_outfiles/'
-#EVENTS_DIR='../event_files/'  # specify this manually instead
 OUTPUT_FL='psd_out_all.csv'
 CONTROL='False'
 # This is mainly for testing
 #NPERM=0 #500
 
-# loop over all files until the NB_FILES_PER_JOB is reached
-### I changed the h_vmem from 10G to 3G because I don't think each job uses 10G, and this might allow more to run at once
 /home/kd2630/code/CMD-Detection/cmd_detection_multiprocessing.py \
       	--write_dir $SAVEPATH \
       	--events_dir $EVENTS_DIR \
