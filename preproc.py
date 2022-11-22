@@ -18,10 +18,6 @@ CLI = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpForma
 
 """Extract events for start/stop trying moving your R/L hand, save and raw.fif for experiment patient data"""
 
-# TODO make separate functions that 1) find the events 2) save the plot 3) save the fif file
-#  then can call the event creation and plotting functions from this in a new script that can be run
-#  just to check if a file was recorded properly
-
 
 def str2bool(v):
     if isinstance(v, bool):
@@ -86,16 +82,15 @@ def process_triggers(raw, chan_dict, trig_thresh=2):
 
     # instead of forcing this to use DC5 through DC8 for each hex value,
     # just set each value in order of channels passed.
-    # ...or set each channel individually? maybe.
     # pass a dict of the channels that map to what DC5 through DC8 should be?
     # this'll set them for each "main name" (i.e., DC5, DC6, DC7, DC8)
     trig_mult = np.array([_trig_hex[x] for x in list(chan_dict.keys())])
     # then choose which channels actually correspond to them.
-    # I guess this should work fine, since the order of the keys and values match..
+    # this should work fine, since the order of the keys and values match
 
-    # WOW, you need this ordered=True so that it DOESN'T order the indices obtained in accending order.
+    # you need this ordered=True so that it doesn't order the indices obtained in ascending order.
     # Normally this was fine, since the channels passed were in increasing order anyway.
-    # but NOW if, for example, DC6 is DC1, it will put the index for DC1 first, messing up the index order of the data below.
+    # but now if, for example, DC6 is DC1, it will put the index for DC1 first, messing up the index order of the data below.
     trig_idx = mne.pick_channels(raw.ch_names, list(chan_dict.values()), ordered=True)
 
     trig_data = (np.abs(
@@ -143,10 +138,10 @@ def process_triggers(raw, chan_dict, trig_thresh=2):
 
     found_seq = []
 
-    # look for the ocurrences of the sequence
+    # look for the occurrences of the sequence
     for i in range(len(diff_seq) - 3):
         if all(diff_seq[i:i + 4] == find_seq):
-            # If the sequence match, get the IDX of the beggining and the end
+            # If the sequence match, get the IDX of the beginning and the end
             idx_end = non_zero_idx[diff_idx[i + 3]]
 
             # The start is the last time that value appears, get the first time
@@ -264,7 +259,7 @@ def check_id_pairs(events):
     num_count = {}
     for pu in pairs_use:
         vals = (count[pu[0]], count[pu[1]])
-        # stupid way to check if both numbers are the same
+        # check if both numbers are the same
         chk = len(set(vals)) != 1
         num_count_chk[pu] = chk
         # also save unique counts
@@ -293,7 +288,7 @@ def check_id_pairs(events):
             count_thresh_chk["(50,60),(70,80)"] = False
 
     # add checks for if the only pairs are (30,40) and (70,80)
-    # !!! actually jusrt need to make sure there's only 1 unique number
+    # actually just need to make sure there's only 1 unique number
     # for each pair instead of doing this
     # if (30, 40) in num_count.keys() and not (10, 20) in num_count.keys():
 
@@ -313,10 +308,8 @@ def clean_it(events):
     # also need to check if events have all the IDs before fixing dc7
     ids_ideal = [10, 20, 30, 40, 50, 60, 70, 80]
     ids_have = list(count.keys())
-    # wow, this is awful that I have "ids_check" and "id_check" as 2 separate variables.
     ids_check = all(eid in ids_have for eid in ids_ideal)
 
-    # id_pairs = check_id_pairs(events3)
     id_check, num_count, num_count_chk, count_thresh_chk = check_id_pairs(events3)
 
     # check if a single unique value for each id pair.
@@ -330,8 +323,7 @@ def clean_it(events):
             id_pair_chk[key] = False
 
     # manually set start/stop if all IDs have same number of events
-    # and do NOT have all 8 IDs
-    # if np.all(chk_arr == chk_arr[0]) and not ids_check:
+    # and do not have all 8 IDs
     if all(list(id_pair_chk.values())) and not ids_check:
         print('DC7 failure--start/stop not defined. Manually setting instead')
         events3 = fix_dc7(events3)
@@ -353,7 +345,7 @@ def process_file(raw, trig_thresh, chan_dict):
     return events
 
 
-def main(args):  #main(wd, args):
+def main(args):
     wd = args.cwd
     # make directories first
     if not os.path.exists(wd + '/event_plots/'):
@@ -364,7 +356,6 @@ def main(args):  #main(wd, args):
 
     if not os.path.exists(wd + '/event_files/'):
         os.makedirs(wd + '/event_files/')
-
 
     filetype = args.filetype
     if filetype == 'edf':
@@ -400,7 +391,6 @@ def main(args):  #main(wd, args):
         else:
             raise ValueError("Unrecognized filetype specified")
 
-        # montage = mne.channels.read_montage('standard_1020')
         montage = mne.channels.make_standard_montage('standard_1020')
         raw.set_montage(montage, on_missing='ignore')
 
@@ -410,6 +400,7 @@ def main(args):  #main(wd, args):
             events = process_file(raw=raw, trig_thresh=0.5, chan_dict=chan_dict)
         except ValueError as e:
             print(e)
+            print("Skipping...")
             continue
 
         if events.size > 0 and not args.force_old_method:
@@ -496,7 +487,5 @@ CLI.add_argument(
 
 
 if __name__ == '__main__':
-#    wd = os.getcwd()
     args = CLI.parse_args()
-    #main(wd=wd, args=args)
     main(args=args)

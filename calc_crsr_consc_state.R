@@ -57,8 +57,6 @@ createTimeCol <- function(x) {
   if (any(names(x) == "eeg_date")) {
     # create test_datetime for reconfig
     rcfgtimes <- x$eeg_time
-    # rcfgtdatetimes <- cleanDate(paste(rcfg.data2$eeg_date, rcfg.data2$eeg_time, sep=" "),
-    #                             badstr="NA NA")
     rcfgtdatetimes <- paste(x$eeg_date, x$eeg_time, sep=" ")
     # just turn the NAs to 00:00s
     rcfgtdatetimes2 <- gsub("NA", "00:00", rcfgtdatetimes)
@@ -101,18 +99,9 @@ fillMissingGroup <- function(x) {
   x2 <- x %>%
   group_by(mrn) %>%
     mutate(cs_group = as.character(cs_group)) %>%
-  # mutate(cs_group = case_when( (!all(is.na(cs_group)) & any(is.na(cs_group)) ) |
-  #                               ( is.na(cs_group) &
-  #                             #lag(test_date) + lubridate::days(1)
-  #                             # data.table::between(lag(test_date), lower=test_date-days(200), upper=test_date+days(200)) ) ~ lag(cs_group) ,
-  #                                 test_date-days(200) <= lag(test_date) & lag(test_date) <= test_date+days(200) ) ~ lag(cs_group),
-  # TRUE ~ cs_group))
   mutate(cs_group = case_when(
     all(is.na(cs_group)) ~ NA_character_,
     all(!is.na(cs_group)) ~ cs_group,
-
-    #is.na(cs_group) & test_date-days(200) <= lag(test_date) & lag(test_date) <= test_date+days(200) ~ lag(cs_group),
-
     TRUE ~ cs_group
   ))
 
@@ -142,9 +131,6 @@ renameMatchCols <- function(db, rn_list) {
 }
 
 # this is a better version of base::commandArgs which allows for default arguments to be specified
-# NOTE: so I guess this works now even for people who aren't in the rc_id file
-# (eg, the deidentified people from miami),
-# but still have data in redcap with the record id used as the mrn in this case.
 args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",
                                            rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
                                            rc_out_path="/Volumes/NeurocriticalCare/kevin/redcap outputs/consciousness/",
@@ -195,9 +181,8 @@ if (any(chk1) | any(chk2) | any(chk3)) {
   dataouts <- lapply(dataouts, createTimeCol)
 }
 
-# O.K. this just converst the test date back to character.
+# this converts the test date back to character.
 data2 <- gtools::smartbind(list=dataouts)
-
 
 # ...the rec name column isn't always named the same.
 # do a search for similar names.
@@ -213,8 +198,6 @@ tmpname3 <- unlist(lapply(tmpname2, paste, collapse='_'))
 modout$recname2 <- tmpname3
 modout$test_date <- as.Date(unlist(lapply(strsplit(modout$recname2, '_'), tail, 1L)))
 if (!'mrn' %in% names(modout)) {
-  # TODO WARNING: I HAVE NO IDEA HOW THIS WILL AFFECT THE NORMAL PROCESSING
- # modout$mrn <- as.numeric(unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1)))
   mrnstoadd <- as.numeric(unlist(lapply(strsplit(modout$recname2, '_'), `[[`, 1)))
   # this is in case the mrns aren't really mrns and are de-identified ids
   if (all(is.na(mrnstoadd))) {
@@ -228,16 +211,12 @@ if (!'mrn' %in% names(modout)) {
   modout$mrn <- mrnstoadd
 }
 
-# ...this is really where the "no mrn for deidentified people" is a problem
-# if I don't filter for non-na mrns here though, it might be ok. 
 if (dont_use_rcid_lst) {
   data2$mrn <- ifelse(is.na(data2$mrn), data2$record_id, data2$mrn)
 }
 
 crsrs <- data2 %>%
-  mutate(#record_id = as.numeric(record_id),
-         test_date = as.Date(test_datetime)) %>%
-  # left_join(select(rcids, record_id, mrn), by = 'record_id') %>%
+  mutate(test_date = as.Date(test_datetime)) %>%
   unite('recname', mrn, test_date, sep='_', remove=F) %>%
   select(record_id, mrn, test_date, test_datetime, recname, crsr_auditory.factor, crsr_visual.factor, crsr_motor.factor, crsr_oromotor_verbal.factor,
          crsr_communication.factor, crsr_arousal.factor, crsr_total) %>%
@@ -245,15 +224,11 @@ crsrs <- data2 %>%
   distinct()
 
 cs_groups <- CalcCSstate(crsrs) %>%
-  # guess I don't need this?
-  # unite('recname_join', mrn, test_date, sep='_', remove=F) %>%
-  # because there might be multiple entries on a given date across the two databases,
-  # need to fill in any values that might have been calculated from either one
   group_by(mrn, test_date) %>%
   fill(cs_group, .direction='updown') %>%
   ungroup() %>%
   # just fill any missing ones with the next closest one.
-  #.... by basically doing the same as above but for just mrn.
+  # by basically doing the same as above but for just mrn.
   group_by(mrn) %>%
   fill(cs_group, .direction='updown') %>%
   ungroup()
@@ -262,23 +237,15 @@ cs_groups_join <- cs_groups %>%
   select(mrn, test_date, cs_group) %>%
   distinct()
 
-
-
 # add cs group to the model output and re-save it
 modout_cs_group <- modout %>%
-  left_join(cs_groups_join, by=c('mrn', 'test_date')) %>%  # 'recname_join',  # don't need recname then?
-  # arrange(mrn, test_date) %>%
+  left_join(cs_groups_join, by=c('mrn', 'test_date')) %>%
   select(-recname2) %>%
   distinct() %>%
   group_by(across(all_of(names(modout)[recname_col_idx]))) %>%
   mutate(cs_group = cs_group[as.numeric(cs_group) == min(as.numeric(cs_group), na.rm=T)]) %>%
   distinct()
 modout_cs_group$mrn <- as.character(modout_cs_group$mrn)
-
-# ok, so if there's still no score on a given test date, just take the closest one.
-# JK, there should always be one for the same date--send this list to Jan and he'll fill in for the recording dates
-# that are missing
-# write_csv(modout_cs_group, "/Volumes/kd2630/Experiments/Auditory/Consciousness_Recordings_as_of_2021-01-06_with_CRSR_group.csv", na="")
 
 # save model output with the cs_group appended.
 write_csv(modout_cs_group, paste0(save_path, "/", save_nm), na="")

@@ -50,7 +50,6 @@ def main(args):
     delays = [1, 2, 4, 8]
     bands = ((1, 3), (4, 7), (8, 13), (14, 30))
     n_permutations = nperm  # 500  # main analysis nejm v1
-    # n_permutations = 2000  # for FDR at the rec level for review 1
     use_ch = [u'C3', u'C4', u'O1', u'O2', u'Cz', u'F3', u'F4', u'F7', u'F8', u'Fz',
               u'Fp1', u'Fp2', u'P3', u'P4', u'Pz', u'T7', u'T8', u'P7', u'P8']
     laplac_ref = True
@@ -83,7 +82,7 @@ def main(args):
 
         # Check if this file name has already been written to the output file. If so, can skip it.
         # That way you can run this script over an existing directory of files, of which you can add new ones to
-        # without having to re-analyze the files that have already been analzyed.
+        # without having to re-analyze the files that have already been analyzed.
         combined_output_flname = glob(write_dir + '/' + combined_output_fl)
 
         if len(combined_output_flname) > 0:
@@ -97,12 +96,6 @@ def main(args):
         else:
             print('Combined model output file does not exist or incorrectly specified. '
                   'Continuing without checking for previously analyzed files.')
-
-        # ugh, just use pandas to save and read the output files instead of csv reader.
-        #  That way I can more easily read by column b/c right now, the column names aren't defined.
-        #  ...but I GUESS the recording names will always be in the 4th column...
-        #  ..but maybe I should improve this anyway? but then combining the outputs will be more difficult..
-        #  ..can't just cat them all into a new file..
 
         epochs = read_func(data=dat,
                            event_fl=event_fl,
@@ -133,15 +126,6 @@ def main(args):
             print('Event lengths are not equal; fixing them..')
             epochs = eeg.fix_epochs(epochs, good_len=n_epo_segments * 2)
 
-        # save event plots after cleaning them again before processing
-#        eventplt = mne.viz.plot_events(epochs.events, show=False)
-#        plt_name = os.path.basename(dat).split('/')[len(os.path.basename(dat).split('/')) - 1]
-#
-#        if not os.path.exists('./event_plots_for_pipeline/'):
-#            os.makedirs('./event_plots_for_pipeline/')
-#        eventplt.savefig('./event_plots_for_pipeline/' + plt_name[:-8] + '.png')
-#        eventplt.clf()
-
         print('Running pipeline with ' + str(nperm) + ' permutations')
         try:
             psd_out = eeg.run_pipeline(epochs=epochs,
@@ -155,7 +139,7 @@ def main(args):
                                        laplac_ref=laplac_ref)
 
             psd_out = psd_out + (dat,)
-            # to insert as columns, needs to be a list of a list..
+            # to insert as columns, needs to be a list of a list
             tmp_df = pd.DataFrame([list(psd_out)], columns=['AUC', 'se', 'pvalue', 'perm_scores', 'rec_name'])
 
         except:

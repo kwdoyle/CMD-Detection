@@ -38,9 +38,8 @@ def main(args):
     save_noname = args.save_noname
 
     ptclass = pd.read_excel(flname, sheet_name=sheet_idx, engine='openpyxl')
-    # holy shit, the column names change ever so slightly whenever a new file is used.
+    # the column names change ever so slightly whenever a new file is used.
     # try to find the relevant columns instead
-    # I'm taking a gamble by taking the first match if there's more than one.
     mrn_col = ptclass.columns[ptclass.columns.str.contains('mrn', case=False)][0]
     name_col = ptclass.columns[ptclass.columns.str.contains('name', case=False)][0]
 
@@ -88,7 +87,7 @@ def main(args):
                 pmrn = int(ptclass[mrn_col][ptclass[name_col].str.contains(pname, case=False, na=False)].iloc[0])
                 dir_use = 'Converted/'
             # sometimes the mrn might just be missing and it'll try to convert a NaN to int which gives a
-            # valueerror instead of an indexerror. oh my god.
+            # valueerror instead of an indexerror.
             except (IndexError, ValueError):
                 print("Patient " + pname + " is missing from the excel file!")
                 if failed_rename or not save_noname:
@@ -122,9 +121,6 @@ def main(args):
         # datetime of recording (as unix epoch)
         dtime = raw.info['meas_date']
         # convert to GMT
-        # (since we've inadvertently been using GMT in the file names this whole time; might as well stick with it)
-        # newtime = time.strftime("%Y-%m-%d_%H-%M-%S", time.gmtime(dtime[0]))
-        # ok so I *GUESS* datetime objects changed at some point??? So now I have to extract the date like this.
         newtime = dtime.strftime(format="%Y-%m-%d_%H-%M-%S")
 
         # create new file name
@@ -132,8 +128,6 @@ def main(args):
         newtxtfn = str(pmrn) + '_' + newtime + '.txt'
 
         idx = [j for j, s in enumerate(txtfiles) if str(edfiles[i][:-4]) in s]
-        # then can select the text file that matches the edf file with this:
-        # txtfiles[idx[0]]
 
         if not os.path.exists(dir_use + newedfn):
             print('Saving ' + newedfn)

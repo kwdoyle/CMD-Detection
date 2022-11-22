@@ -8,9 +8,6 @@ from mne.stats import fdr_correction as fdr
 
 pd.options.mode.chained_assignment = None
 
-# NOTE: can get the model output dataframe w/ cmd significance Y/N in a column per recording
-# from read_file2's output
-
 
 def find_column(df, namecols):
     col_ix = np.concatenate([np.where(df.columns.str.contains(x))[0] for x in namecols])
@@ -28,7 +25,6 @@ def find_signif_files2(x, orig_dat):
     for ix, rw in x.iterrows():
         signifs = rw['out'][0]
         tmp_dat = orig_dat[orig_dat['mrn'] == rw['mrn']]
-        # can I just add the new pvalues and signifs to the table?
         new_p = rw['out'][1]
         tmp_dat['p_correct'] = new_p
         tmp_dat['p_signif'] = signifs
@@ -40,15 +36,6 @@ def find_signif_files2(x, orig_dat):
 
 def read_file2(input_file, rm_names, rm_mcsp_cs=True):
     model_data = pd.read_csv(input_file)
-    # wow, wtf, I didn't remove CS and MCSp recordings in this?????
-    # not explicitly necessary with newer analyzed files as I don't put them in separate folders
-    # per CRS-R score group.
-
-    # find recording name column to use
-    # namecols = ['rec_name', 'recname', 'rec.name', 'rec name',
-    #             'fname', 'filename', 'just_filename', 'just_fname']
-    # fname_col_ix = np.where([any(model_data.columns.str.contains(x)) for x in namecols])[0][0]
-    # fname_col = namecols[fname_col_ix]
 
     fname_col = find_column(df=model_data, namecols=['rec_name', 'recname', 'rec.name', 'rec name',
                                                      'fname', 'filename', 'just_filename', 'just_fname'])
@@ -59,8 +46,6 @@ def read_file2(input_file, rm_names, rm_mcsp_cs=True):
     model_data['rec_name2'] = justfnames
 
     if rm_mcsp_cs:
-        # model_data = model_data[~model_data[fname_col].str.contains('/CS/')]
-        # model_data = model_data[~model_data[fname_col].str.contains('/MCSp/')]
         # can use this new column created in calc_crsr_consc_state.R
         model_data = model_data[~model_data['cs_group'].isin(['CS', 'MCSp'])]
         # remove rows where cs_group is missing
@@ -70,24 +55,15 @@ def read_file2(input_file, rm_names, rm_mcsp_cs=True):
     bad_recs = model_data[pd.isnull(model_data.AUC) | model_data.AUC == 0]
 
     model_data.drop(bad_recs.index, inplace=True)
-    # bad_rec_names = bad_recs.rec_name.tolist()
     bad_rec_names = bad_recs[fname_col].tolist()
 
     if rm_names is not None:
-        # Now remove people in the list of people to remove for various reasons
         isin_vec = model_data.rec_name2.isin(rm_names.to_list())
         bad_juans = isin_vec[isin_vec == True]
         model_data.drop(bad_juans.index, inplace=True)
 
     model_data['pvalue'] = pd.to_numeric(model_data['pvalue'])
     # extract MRNs
-    # maybe always extract from the full path..?
-#    try:
-#        model_data['mrn'] = model_data[fname_col].str.split('_').apply(lambda x: x[0]).astype('int')
-#    except ValueError:
-        # print('Getting MRNs from full file path instead..')
-        # model_data['mrn'] = model_data['rec_name'].str.split('/').apply(lambda x: x[2]).str.split('_').apply(
-          #  lambda x: x[0]).astype('int')
     use = model_data[fname_col].str.split('/').apply(lambda x: x[len(x) - 1])
     if 'mrn' not in model_data.columns:
         try:
@@ -108,11 +84,6 @@ def read_file2(input_file, rm_names, rm_mcsp_cs=True):
 
 
 def get_cmd_recs(df):
-    # namecols = ['rec_name', 'recname', 'rec.name', 'rec name',
-    #             'fname', 'filename', 'just_filename', 'just_fname']
-    # fname_col_ix = np.where([any(df.columns.str.contains(x)) for x in namecols])[0][0]
-    # fname_col = namecols[fname_col_ix]
-
     fname_col = find_column(df, namecols=['rec_name', 'recname', 'rec.name', 'rec name',
                                           'fname', 'filename', 'just_filename', 'just_fname'])
 
