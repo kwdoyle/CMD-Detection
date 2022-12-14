@@ -443,7 +443,7 @@ def main(args):
         # create the fif files directory if it doesn't already exist
         raw.save(wd + '/fif_files/' + '/'+os.path.basename(fl)[:-4] + '-raw.fif', overwrite=True)
         # also write events, b/c this preprocessing step is too complicated to just have the cmd script perform as well.
-        mne.write_events(wd + '/event_files/' + '/'+os.path.basename(fl)[:-4] + '-eve.fif', events)
+        mne.write_events(wd + '/event_files/' + '/'+os.path.basename(fl)[:-4] + '-eve.fif', events, overwrite=True)
 
 
 CLI.add_argument(

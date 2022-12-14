@@ -28,6 +28,8 @@ loadRedcap <- function(path, rcids) {
     env <- new.env()
     sourceEnv(path=path[i], env=env)
     data <- env$data
+    # manually convert all dates to characters
+    data[,grep("date", names(data))] <- lapply(data[,grep("date", names(data))], as.character)
     data2 <- sjlabelled::remove_all_labels(kevtools::processREDCapData(data))
     # TODO I guess check for the "A-"s from the aphasia id list, since they're NOT
     # in the actual id.
@@ -132,8 +134,8 @@ renameMatchCols <- function(db, rn_list) {
 
 # this is a better version of base::commandArgs which allows for default arguments to be specified
 args <- R.utils::commandArgs(defaults=list(model_output="./psd_out_all.csv",
-                                           rc_id="/Volumes/groups/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
-                                           rc_out_path="/Volumes/NeurocriticalCare/kevin/redcap outputs/consciousness/",
+                                           rc_id="/mnt/babylon/NICU/Consciousness Database/CONSCIOUSNESS_DB_MRN_TO_RECORD_ID.xlsx",
+                                           rc_out_path="/mnt/prometheus/kevin/redcap outputs/consciousness/",
                                            save_path="."),
                              asValues=TRUE)
 
@@ -151,7 +153,7 @@ save_nm <- substr(save_nm, 1, nchar(save_nm)-4)
 save_nm <- paste0(save_nm, "_w_crsr_group.csv")
 
 # make these paths arguments too
-modout <- read.csv(model_output)
+modout <- read.csv(model_output, stringsAsFactors = FALSE)
 
 rcid_lst <- list()
 for (i in 1:length(rc_id)) {
