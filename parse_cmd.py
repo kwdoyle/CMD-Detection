@@ -29,8 +29,8 @@ def find_signif_files2(x, orig_dat):
         tmp_dat['p_correct'] = new_p
         tmp_dat['p_signif'] = signifs
 
-        new_df = new_df.append(tmp_dat)
-
+        # new_df = new_df.append(tmp_dat)
+        new_df = pd.concat([new_df, tmp_dat])
     return new_df
 
 
