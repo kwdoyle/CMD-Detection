@@ -1,0 +1,7 @@
+# install these using the 'requiRements' package: requiRements::install(packages = "/path/to/this/requirements_r.txt")
+tidyverse
+sjlabelled
+kwdoyle/kevtools
+readxl
+lubridate
+gtools

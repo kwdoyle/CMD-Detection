@@ -1,0 +1,7 @@
+matplotlib==3.6.0
+mne==1.1.1
+numpy==1.23.3
+pandas==1.5.0
+git+https://github.com/nice-tools/pycsd.git
+pyriemann==0.3
+scikit_learn==1.2.0
